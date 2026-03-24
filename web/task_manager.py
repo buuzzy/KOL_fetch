@@ -182,6 +182,10 @@ class TaskManager:
         self._update_db_status(state.task_id, "running")
 
         try:
+            from config import TIKHUB_API_KEY
+            if not TIKHUB_API_KEY:
+                raise ValueError("Instagram 搜索暂不可用：TIKHUB_API_KEY 未配置，请联系管理员")
+
             from instagram_client import InstagramClient
             from instagram_discovery import discover_ig_kols
             from report import export_ig_csv, export_ig_excel
