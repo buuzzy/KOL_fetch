@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}工作台 - KOL 搜索中台{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-900">工作台</h2>
+  <p class="text-gray-500 mt-1">概览与近期任务</p>
+</div>
+
+<!-- 统计卡片 -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+  <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+    <p class="text-sm text-gray-500">YouTube 快照</p>
+    <p class="text-2xl font-bold text-gray-900 mt-1">{{ yt_snapshot_count }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+    <p class="text-sm text-gray-500">Instagram 快照</p>
+    <p class="text-2xl font-bold text-gray-900 mt-1">{{ ig_snapshot_count }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+    <p class="text-sm text-gray-500">运行中任务</p>
+    <p class="text-2xl font-bold text-blue-600 mt-1">{{ running_tasks }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+    <p class="text-sm text-gray-500">今日已完成</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">{{ completed_today }}</p>
+  </div>
+</div>
+
+<!-- 快捷操作 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  <a href="/discover?platform=youtube"
+     class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition group">
+    <div class="flex items-center">
+      <div class="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center mr-4">
+        <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-900 group-hover:text-red-600 transition">YouTube 博主发现</h3>
+        <p class="text-sm text-gray-500 mt-0.5">搜索港澳财经 YouTube 频道</p>
+      </div>
+    </div>
+  </a>
+  <a href="/discover?platform=instagram"
+     class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition group">
+    <div class="flex items-center">
+      <div class="w-12 h-12 bg-pink-50 rounded-lg flex items-center justify-center mr-4">
+        <svg class="w-6 h-6 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-900 group-hover:text-pink-600 transition">Instagram 博主发现</h3>
+        <p class="text-sm text-gray-500 mt-0.5">搜索港澳财经 IG 博主</p>
+      </div>
+    </div>
+  </a>
+</div>
+
+<!-- 近期任务 -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+  <div class="px-6 py-4 border-b border-gray-100">
+    <h3 class="font-semibold text-gray-900">近期任务</h3>
+  </div>
+  {% if tasks %}
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+        <tr>
+          <th class="px-6 py-3 text-left">平台</th>
+          <th class="px-6 py-3 text-left">状态</th>
+          <th class="px-6 py-3 text-left">结果</th>
+          <th class="px-6 py-3 text-left">时间</th>
+          <th class="px-6 py-3 text-left">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for task in tasks %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-3">
+            {% if task.task_type == 'youtube' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">YouTube</span>
+            {% else %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700">Instagram</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-3">
+            {% if task.status == 'completed' %}
+            <span class="inline-flex items-center text-green-600 text-sm"><span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>已完成</span>
+            {% elif task.status == 'running' %}
+            <span class="inline-flex items-center text-blue-600 text-sm"><span class="w-2 h-2 bg-blue-500 rounded-full mr-1.5 animate-pulse"></span>运行中</span>
+            {% elif task.status == 'failed' %}
+            <span class="inline-flex items-center text-red-600 text-sm"><span class="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>失败</span>
+            {% else %}
+            <span class="inline-flex items-center text-gray-500 text-sm"><span class="w-2 h-2 bg-gray-400 rounded-full mr-1.5"></span>等待中</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-3 text-sm text-gray-600">
+            {% if task.result_summary %}
+              {{ task.result_summary.get('total', '-') }} 个 KOL
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td class="px-6 py-3 text-sm text-gray-500">{{ task.created_at_display }}</td>
+          <td class="px-6 py-3">
+            <a href="/tasks/{{ task.task_id }}" class="text-sm text-blue-600 hover:text-blue-800">查看</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-6 py-12 text-center text-gray-400">
+    <p>暂无任务记录</p>
+    <a href="/discover" class="text-blue-600 hover:underline text-sm mt-2 inline-block">开始搜索博主</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

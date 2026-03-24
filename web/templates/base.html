@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}KOL 搜索中台{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+  <!-- 侧边栏 -->
+  <aside class="w-60 bg-gray-900 text-gray-300 flex flex-col fixed h-full">
+    <div class="px-5 py-5 border-b border-gray-800">
+      <h1 class="text-lg font-bold text-white">KOL 搜索中台</h1>
+      <p class="text-xs text-gray-500 mt-1">港澳财经博主发现</p>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="/dashboard"
+         class="flex items-center px-3 py-2 rounded-lg text-sm hover:bg-gray-800 hover:text-white transition
+                {% if active_page == 'dashboard' %}bg-gray-800 text-white{% endif %}">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
+        </svg>
+        工作台
+      </a>
+      <a href="/discover"
+         class="flex items-center px-3 py-2 rounded-lg text-sm hover:bg-gray-800 hover:text-white transition
+                {% if active_page == 'discover' %}bg-gray-800 text-white{% endif %}">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        发现博主
+      </a>
+      <a href="/snapshots"
+         class="flex items-center px-3 py-2 rounded-lg text-sm hover:bg-gray-800 hover:text-white transition
+                {% if active_page == 'snapshots' %}bg-gray-800 text-white{% endif %}">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/>
+        </svg>
+        快照历史
+      </a>
+      <a href="/contacts"
+         class="flex items-center px-3 py-2 rounded-lg text-sm hover:bg-gray-800 hover:text-white transition
+                {% if active_page == 'contacts' %}bg-gray-800 text-white{% endif %}">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        联系博主
+      </a>
+      <a href="/diff"
+         class="flex items-center px-3 py-2 rounded-lg text-sm hover:bg-gray-800 hover:text-white transition
+                {% if active_page == 'diff' %}bg-gray-800 text-white{% endif %}">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        月度轧差
+      </a>
+    </nav>
+    <div class="px-4 py-3 border-t border-gray-800">
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-gray-500 truncate">{{ user_email or '' }}</span>
+        <a href="/api/auth/logout" class="text-xs text-gray-500 hover:text-white transition">登出</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 全局页面加载遮罩 -->
+  <div id="page-loading" class="hidden fixed inset-0 z-50 bg-gray-50/80 flex items-center justify-center ml-60">
+    <div class="flex flex-col items-center gap-3">
+      <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span class="text-sm text-gray-500">加载中...</span>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <main class="flex-1 ml-60">
+    <div class="p-8">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Toast 容器 -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col-reverse gap-2 pointer-events-none"></div>
+
+  <!-- 全局确认弹窗 -->
+  <div id="confirm-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="window._confirmResolve && window._confirmResolve(false)"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform transition-all">
+      <div class="p-6">
+        <div class="flex items-start gap-4">
+          <div id="confirm-icon" class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-red-100">
+            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 id="confirm-title" class="text-base font-semibold text-gray-900">确认操作</h3>
+            <p id="confirm-message" class="mt-1 text-sm text-gray-500"></p>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <button id="confirm-cancel" onclick="window._confirmResolve && window._confirmResolve(false)"
+                class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+          取消
+        </button>
+        <button id="confirm-ok" onclick="window._confirmResolve && window._confirmResolve(true)"
+                class="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition">
+          确定
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% block scripts %}{% endblock %}
+  <script>
+  (function() {
+    var overlay = document.getElementById('page-loading');
+    var links = document.querySelectorAll('aside nav a[href]');
+    links.forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        if (a.href === window.location.href) return;
+        overlay.classList.remove('hidden');
+      });
+    });
+    window.addEventListener('pageshow', function() {
+      overlay.classList.add('hidden');
+    });
+  })();
+
+  /* ── 全局确认弹窗 ── */
+  function showConfirm(message, options) {
+    options = options || {};
+    var modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-title').textContent = options.title || '确认操作';
+    document.getElementById('confirm-message').textContent = message;
+
+    var okBtn = document.getElementById('confirm-ok');
+    var iconWrap = document.getElementById('confirm-icon');
+    var type = options.type || 'danger';
+
+    if (type === 'danger') {
+      okBtn.className = 'flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition';
+      iconWrap.className = 'shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-red-100';
+      iconWrap.querySelector('svg').setAttribute('class', 'w-5 h-5 text-red-600');
+    } else {
+      okBtn.className = 'flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition';
+      iconWrap.className = 'shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-blue-100';
+      iconWrap.querySelector('svg').setAttribute('class', 'w-5 h-5 text-blue-600');
+    }
+
+    okBtn.textContent = options.confirmText || '确定';
+    document.getElementById('confirm-cancel').textContent = options.cancelText || '取消';
+    modal.classList.remove('hidden');
+
+    return new Promise(function(resolve) {
+      window._confirmResolve = function(val) {
+        modal.classList.add('hidden');
+        window._confirmResolve = null;
+        resolve(val);
+      };
+    });
+  }
+
+  /* ── 全局 Toast 通知 ── */
+  const _TOAST_CFG = {
+    success: { bg: 'bg-green-600', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>' },
+    error:   { bg: 'bg-red-600',   icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>' },
+    info:    { bg: 'bg-blue-600',  icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/>' },
+    warning: { bg: 'bg-amber-500', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86l-8.6 14.88A1 1 0 002.56 20h16.88a1 1 0 00.87-1.26l-8.6-14.88a1 1 0 00-1.72 0z"/>' },
+  };
+
+  function showToast(message, type, duration) {
+    type = type || 'info';
+    duration = duration || 3000;
+    var cfg = _TOAST_CFG[type] || _TOAST_CFG.info;
+    var container = document.getElementById('toast-container');
+    var el = document.createElement('div');
+    el.className = 'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm max-w-sm transform translate-y-2 opacity-0 transition-all duration-300 ' + cfg.bg;
+    el.innerHTML =
+      '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">' + cfg.icon + '</svg>' +
+      '<span class="flex-1">' + message + '</span>' +
+      '<button onclick="this.parentElement.style.opacity=0;setTimeout(()=>this.parentElement.remove(),300)" class="shrink-0 ml-1 opacity-70 hover:opacity-100 transition">' +
+        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>';
+    container.appendChild(el);
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      });
+    });
+    setTimeout(function() {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(0.5rem)';
+      setTimeout(function() { el.remove(); }, 300);
+    }, duration);
+  }
+  </script>
+</body>
+</html>

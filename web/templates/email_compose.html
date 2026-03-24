@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}撰写邮件 - KOL 搜索中台{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <div class="flex items-center space-x-3 mb-2">
+    <a href="/contacts" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h2 class="text-2xl font-bold text-gray-900">撰写邮件</h2>
+  </div>
+  <p class="text-gray-500 mt-1">选择模板和收件人，批量发送合作邀请邮件</p>
+</div>
+
+<div x-data="composeApp()" x-init="init()">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- 左栏：模板选择 + 预览 -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-900 mb-3">选择模板</h3>
+        {% if email_templates %}
+        <select x-model="selectedTemplateId" @change="updatePreview()"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          <option value="">请选择邮件模板...</option>
+          {% for tpl in email_templates %}
+          <option value="{{ tpl.id }}">{{ tpl.name }} — {{ tpl.subject }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <div class="text-sm text-gray-400">
+          暂无模板，请先 <a href="/contacts/templates" class="text-blue-600 hover:underline">创建模板</a>
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">发件人名称（可选）</label>
+          <input type="text" x-model="fromName" placeholder="如：XXX 市场团队"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          <p class="text-xs text-gray-400 mt-1">收件人看到的发件人显示名，留空则直接显示邮箱地址</p>
+        </div>
+      </div>
+
+      <!-- 预览 -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="selectedTemplateId" x-cloak>
+        <h3 class="font-semibold text-gray-900 mb-3">邮件预览</h3>
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            <p class="text-xs text-gray-500">主题</p>
+            <p class="text-sm font-medium text-gray-900" x-text="previewSubject"></p>
+          </div>
+          <div class="p-4 text-sm text-gray-700 prose prose-sm max-w-none" x-html="previewBody"></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">预览中 <code class="bg-gray-100 px-1 rounded">｛｛name｝｝</code> 显示为第一个收件人的名称</p>
+      </div>
+    </div>
+
+    <!-- 右栏：收件人选择 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-900">选择收件人</h3>
+        <span class="text-xs text-gray-400" x-text="'已选 ' + selectedContactIds.length + ' / ' + allContacts.length + ' 人'"></span>
+      </div>
+
+      {% if contacts %}
+      <div class="mb-3 flex items-center gap-3">
+        <button type="button" @click="selectAllContacts()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">全选</button>
+        <span class="text-gray-300">|</span>
+        <button type="button" @click="clearAllContacts()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">清空</button>
+        <input type="text" x-model="contactSearch" placeholder="搜索..."
+               class="ml-auto px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none w-36">
+      </div>
+
+      <div class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+        {% for c in contacts %}
+        <label class="flex items-center px-3 py-2.5 hover:bg-gray-50 cursor-pointer contact-item"
+               data-search-text="{{ c.name|lower }} {{ c.email|lower }}"
+               x-show="!contactSearch || '{{ c.name|lower }} {{ c.email|lower }}'.includes(contactSearch.toLowerCase())">
+          <input type="checkbox" value="{{ c.id }}" class="recipient-cb rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                 @change="updateContactSelection()"
+                 {% if c.id in preselected_ids.split(',') %}checked{% endif %}>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ c.name }}</p>
+            <p class="text-xs text-gray-500 truncate">{{ c.email }}</p>
+          </div>
+          <div class="ml-2 shrink-0">
+            {% if c.platform == 'youtube' %}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">YT</span>
+            {% else %}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-pink-100 text-pink-700">IG</span>
+            {% endif %}
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center text-gray-400 py-8 text-sm">
+        暂无有邮箱的联系人，请先在 <a href="/contacts" class="text-blue-600 hover:underline">联系人管理</a> 中导入并补充邮箱
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 发送按钮 -->
+  <div class="mt-6 flex items-center gap-4">
+    <button @click="confirmSend()"
+            :disabled="!selectedTemplateId || selectedContactIds.length === 0 || sending"
+            :class="(!selectedTemplateId || selectedContactIds.length === 0 || sending) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+            class="px-6 py-2.5 text-white font-medium rounded-lg transition text-sm">
+      <span x-show="!sending" x-text="'发送邮件 (' + selectedContactIds.length + ' 人)'"></span>
+      <span x-show="sending" x-cloak>发送中...</span>
+    </button>
+    <span class="text-xs text-gray-400" x-show="!selectedTemplateId || selectedContactIds.length === 0">
+      请选择模板并勾选至少一位收件人
+    </span>
+  </div>
+
+  <!-- 发送结果 -->
+  <div x-show="sendResult" x-cloak class="mt-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">发送结果</h3>
+      <div class="grid grid-cols-3 gap-4 mb-4 max-w-md">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-gray-900" x-text="sendResult?.total || 0"></p>
+          <p class="text-xs text-gray-500">总计</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-green-600" x-text="sendResult?.success_count || 0"></p>
+          <p class="text-xs text-gray-500">成功</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-red-500" x-text="sendResult?.fail_count || 0"></p>
+          <p class="text-xs text-gray-500">失败</p>
+        </div>
+      </div>
+      <template x-if="sendResult?.details?.length">
+        <div class="max-h-48 overflow-y-auto text-xs divide-y divide-gray-100 border border-gray-200 rounded-lg">
+          <template x-for="d in sendResult.details" :key="d.email">
+            <div class="flex items-center justify-between px-3 py-2" :class="d.success ? '' : 'bg-red-50'">
+              <span x-text="d.name + ' (' + d.email + ')'"></span>
+              <span x-text="d.success ? '成功' : d.error" :class="d.success ? 'text-green-600' : 'text-red-600'"></span>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<style>[x-cloak] { display: none !important; }</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ALL_TEMPLATES = {{ email_templates | tojson }};
+const PRESELECTED = '{{ preselected_ids }}'.split(',').filter(Boolean);
+
+function composeApp() {
+  return {
+    selectedTemplateId: '',
+    fromName: '',
+    selectedContactIds: [],
+    contactSearch: '',
+    allContacts: [],
+    previewSubject: '',
+    previewBody: '',
+    sending: false,
+    sendResult: null,
+
+    init() {
+      this.allContacts = Array.from(document.querySelectorAll('.recipient-cb')).map(cb => cb.value);
+      if (PRESELECTED.length) {
+        PRESELECTED.forEach(id => {
+          const cb = document.querySelector(`.recipient-cb[value="${id}"]`);
+          if (cb) cb.checked = true;
+        });
+        this.updateContactSelection();
+      }
+    },
+
+    updatePreview() {
+      const tpl = ALL_TEMPLATES.find(t => t.id === this.selectedTemplateId);
+      if (!tpl) { this.previewSubject = ''; this.previewBody = ''; return; }
+      const sampleName = this.selectedContactIds.length
+        ? (document.querySelector(`.recipient-cb[value="${this.selectedContactIds[0]}"]`)
+            ?.closest('label')?.querySelector('.text-gray-900')?.textContent?.trim() || 'KOL')
+        : 'KOL';
+      this.previewSubject = tpl.subject.replace(/\{\{name\}\}/g, sampleName);
+      this.previewBody = tpl.body.replace(/\{\{name\}\}/g, sampleName);
+    },
+
+    updateContactSelection() {
+      this.selectedContactIds = Array.from(document.querySelectorAll('.recipient-cb:checked')).map(cb => cb.value);
+      this.updatePreview();
+    },
+
+    selectAllContacts() {
+      document.querySelectorAll('.recipient-cb').forEach(cb => {
+        const label = cb.closest('.contact-item');
+        if (label && label.style.display !== 'none') cb.checked = true;
+      });
+      this.updateContactSelection();
+    },
+
+    clearAllContacts() {
+      document.querySelectorAll('.recipient-cb').forEach(cb => { cb.checked = false; });
+      this.updateContactSelection();
+    },
+
+    async confirmSend() {
+      const count = this.selectedContactIds.length;
+      if (!confirm(`确定向 ${count} 位 KOL 发送邮件？\n\n发送过程可能需要数十秒，请耐心等待。`)) return;
+
+      this.sending = true;
+      this.sendResult = null;
+
+      try {
+        const res = await fetch('/api/contacts/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            template_id: this.selectedTemplateId,
+            contact_ids: this.selectedContactIds,
+            from_name: this.fromName,
+          }),
+        });
+        this.sendResult = await res.json();
+      } catch (e) {
+        alert('发送请求失败: ' + e);
+      } finally {
+        this.sending = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}快照详情 - KOL 搜索中台{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <div class="flex items-center space-x-3 mb-2">
+    <a href="/snapshots" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h2 class="text-2xl font-bold text-gray-900">快照详情</h2>
+  </div>
+  <div class="flex items-center space-x-3">
+    {% if platform == 'youtube' %}
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">YouTube</span>
+    {% elif platform == 'instagram' %}
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700">Instagram</span>
+    {% endif %}
+    <span class="text-sm text-gray-500">共 {{ total }} 个 KOL</span>
+  </div>
+</div>
+
+{% if error %}
+<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-5">{{ error }}</div>
+{% elif kols %}
+
+<!-- 搜索条件卡片 -->
+{% if meta and meta.search_params %}
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+  <h4 class="text-sm font-semibold text-blue-800 mb-2">搜索条件</h4>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-1.5 text-sm">
+    {% for key, val in meta.search_params.items() %}
+      {% if key != '关键词' %}
+      <div class="flex">
+        <span class="text-blue-600 font-medium w-20 shrink-0">{{ key }}</span>
+        <span class="text-blue-900">{{ val }}</span>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% if meta.search_params.get('关键词') %}
+  <div class="mt-2 pt-2 border-t border-blue-200">
+    <span class="text-blue-600 font-medium text-sm">关键词：</span>
+    <div class="flex flex-wrap gap-1.5 mt-1">
+      {% for kw in meta.search_params['关键词'] %}
+      <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{{ kw }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- 搜索栏 -->
+<div class="mb-4">
+  <input id="kol-search" type="text" placeholder="搜索 KOL 名称、用户名、关键词..."
+         class="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+  <table id="kol-table" class="w-full text-sm">
+    <thead class="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0">
+      <tr>
+        <th class="px-4 py-3 text-left">#</th>
+        <th class="px-4 py-3 text-left cursor-pointer hover:text-gray-900 select-none"
+            data-sort-key="name" data-sort-type="string" onclick="sortTable(this)">
+          名称 <span class="sort-arrow text-gray-300 ml-0.5"></span>
+        </th>
+        {% if platform == 'youtube' %}
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-gray-900 select-none"
+            data-sort-key="subscriber_count" data-sort-type="number" onclick="sortTable(this)">
+          订阅数 <span class="sort-arrow text-gray-300 ml-0.5"></span>
+        </th>
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-gray-900 select-none"
+            data-sort-key="video_count" data-sort-type="number" onclick="sortTable(this)">
+          视频数 <span class="sort-arrow text-gray-300 ml-0.5"></span>
+        </th>
+        {% else %}
+        <th class="px-4 py-3 text-left">用户名</th>
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-gray-900 select-none"
+            data-sort-key="follower_count" data-sort-type="number" onclick="sortTable(this)">
+          粉丝数 <span class="sort-arrow text-gray-300 ml-0.5"></span>
+        </th>
+        {% endif %}
+        <th class="px-4 py-3 text-right cursor-pointer hover:text-gray-900 select-none relative"
+            data-sort-key="hk_relevance_score" data-sort-type="number" onclick="sortTable(this)">
+          <span class="inline-flex items-center">
+            HK 分
+            <span class="sort-arrow text-gray-300 ml-0.5"></span>
+            <span class="ml-1 relative group">
+              <svg class="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 cursor-help" fill="currentColor" viewBox="0 0 20 20" onclick="event.stopPropagation()">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+              <div class="hidden group-hover:block absolute z-50 right-0 top-5 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg font-normal normal-case tracking-normal"
+                   onclick="event.stopPropagation()">
+                <p class="font-semibold mb-1.5">港澳相关性评分规则</p>
+                <ul class="space-y-1 text-gray-300">
+                  <li>名称或简介中每出现一个港澳关键词 <span class="text-green-400">+1 分</span></li>
+                  <li>频道名称中包含港澳关键词 <span class="text-green-400">+2 分</span></li>
+                  <li>所在地区为香港/澳门 <span class="text-green-400">+3 分</span></li>
+                </ul>
+                <p class="mt-1.5 text-gray-400">分数越高，与港澳受众越相关</p>
+              </div>
+            </span>
+          </span>
+        </th>
+        <th class="px-4 py-3 text-left">内容方向</th>
+        <th class="px-4 py-3 text-left">发现关键词</th>
+        <th class="px-4 py-3 text-left">链接</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for kol in kols %}
+      <tr class="hover:bg-gray-50"
+          data-name="{{ kol.name }}"
+          data-subscriber_count="{{ kol.subscriber_count | default(0) }}"
+          data-video_count="{{ kol.video_count | default(0) }}"
+          data-follower_count="{{ kol.follower_count | default(0) }}"
+          data-hk_relevance_score="{{ kol.hk_relevance_score }}">
+        <td class="px-4 py-2.5 text-gray-400 row-index">{{ loop.index }}</td>
+        <td class="px-4 py-2.5 font-medium text-gray-900">{{ kol.name }}</td>
+        {% if platform == 'youtube' %}
+        <td class="px-4 py-2.5 text-right text-gray-700">{{ "{:,}".format(kol.subscriber_count) }}</td>
+        <td class="px-4 py-2.5 text-right text-gray-500">{{ "{:,}".format(kol.video_count) }}</td>
+        {% else %}
+        <td class="px-4 py-2.5 text-gray-500">@{{ kol.username }}</td>
+        <td class="px-4 py-2.5 text-right text-gray-700">{{ "{:,}".format(kol.follower_count) }}</td>
+        {% endif %}
+        <td class="px-4 py-2.5 text-right">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                       {% if kol.hk_relevance_score >= 5 %}bg-green-100 text-green-700
+                       {% elif kol.hk_relevance_score >= 3 %}bg-yellow-100 text-yellow-700
+                       {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ kol.hk_relevance_score }}
+          </span>
+        </td>
+        <td class="px-4 py-2.5 text-gray-500 text-xs">
+          {% if kol.content_focus %}{{ kol.content_focus | join(', ') }}{% else %}待分析{% endif %}
+        </td>
+        <td class="px-4 py-2.5 text-gray-400 text-xs">
+          {% if kol.discovered_via_keywords %}{{ kol.discovered_via_keywords | join(', ') }}{% endif %}
+        </td>
+        <td class="px-4 py-2.5">
+          {% set url = kol.profile_url if kol.profile_url is defined else '' %}
+          {% if url %}
+          <a href="{{ url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs">打开</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+  <p>此快照中没有 KOL 数据</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}
