@@ -96,7 +96,11 @@ class YouTubeClient:
             error_reason = (
                 data.get("error", {}).get("errors", [{}])[0].get("reason", "")
             )
-            if error_reason in ("quotaExceeded", "dailyLimitExceeded"):
+            _QUOTA_REASONS = ("quotaExceeded", "dailyLimitExceeded")
+            _ROTATE_REASONS = _QUOTA_REASONS + ("accessNotConfigured", "SERVICE_DISABLED")
+            if error_reason in _ROTATE_REASONS:
+                label = "额度耗尽" if error_reason in _QUOTA_REASONS else "API 未启用"
+                logger.warning("Key #%d %s (%s)", self._key_index + 1, label, error_reason)
                 if self._rotate_key():
                     params["key"] = self._api_key
                     resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
@@ -104,8 +108,9 @@ class YouTubeClient:
                     if resp.status_code != 403:
                         resp.raise_for_status()
                         return data
+                    return self._get(endpoint, params)
                 raise QuotaExhaustedError(
-                    f"所有 {len(self._api_keys)} 个 Key 额度均已耗尽"
+                    f"所有 {len(self._api_keys)} 个 Key 均不可用"
                 )
             raise QuotaExhaustedError(f"API 返回 403: {data}")
 
