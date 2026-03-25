@@ -300,8 +300,14 @@ async def update_template(
 @router.delete("/api/contacts/templates/{template_id}")
 async def delete_template(template_id: str, user=Depends(require_auth)):
     client = get_admin_client()
-    client.table("email_templates").delete().eq("id", template_id).execute()
-    return JSONResponse({"success": True})
+    try:
+        client.table("email_logs").update(
+            {"template_id": None}
+        ).eq("template_id", template_id).execute()
+        client.table("email_templates").delete().eq("id", template_id).execute()
+        return JSONResponse({"success": True})
+    except Exception as e:
+        return JSONResponse({"error": f"删除失败: {e}"}, status_code=500)
 
 
 # ── 撰写邮件页 ──
