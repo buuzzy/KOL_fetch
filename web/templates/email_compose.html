@@ -216,6 +216,8 @@ function composeApp() {
       this.sendResult = null;
 
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 60000);
         const res = await fetch('/api/contacts/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -224,10 +226,14 @@ function composeApp() {
             contact_ids: this.selectedContactIds,
             from_name: this.fromName,
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timer);
         this.sendResult = await res.json();
       } catch (e) {
-        alert('发送请求失败: ' + e);
+        var msg = e.name === 'AbortError' ? '请求超时，请稍后重试' : '发送请求失败: ' + e;
+        if (typeof showToast === 'function') showToast(msg, 'error');
+        else alert(msg);
       } finally {
         this.sending = false;
       }

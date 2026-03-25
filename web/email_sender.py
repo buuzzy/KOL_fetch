@@ -178,10 +178,14 @@ def send_email(
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
             smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             smtp.sendmail(GMAIL_USER, [to], msg.as_string())
         return {"success": True, "error": ""}
+    except smtplib.SMTPAuthenticationError:
+        return {"success": False, "error": "Gmail 认证失败，请检查应用密码"}
+    except (TimeoutError, OSError) as e:
+        return {"success": False, "error": f"SMTP 连接超时: {e}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
