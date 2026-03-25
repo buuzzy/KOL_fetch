@@ -1,26 +1,14 @@
-"""Gmail SMTP 邮件发送 + 多渠道联系方式提取工具。"""
+"""Resend 邮件发送 + 多渠道联系方式提取工具。"""
 
 import os
 import re
-import socket
-import smtplib
 import time
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
-GMAIL_USER = os.getenv("GMAIL_USER") or os.getenv("IMAP_USER", "")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("IMAP_PASSWORD", "")
+import resend
 
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
+resend.api_key = os.getenv("RESEND_API_KEY", "")
 
-_orig_getaddrinfo = socket.getaddrinfo
-
-def _ipv4_getaddrinfo(*args, **kwargs):
-    """过滤掉 IPv6 结果，强制使用 IPv4（Render 等云平台 IPv6 不可达）。"""
-    results = _orig_getaddrinfo(*args, **kwargs)
-    ipv4 = [r for r in results if r[0] == socket.AF_INET]
-    return ipv4 if ipv4 else results
+SENDER_EMAIL = os.getenv("RESEND_FROM", "onboarding@resend.dev")
 
 _EMAIL_RE = re.compile(
     r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
@@ -175,34 +163,22 @@ def send_email(
     body_html: str,
     from_name: str = "",
 ) -> dict:
-    """发送单封 HTML 邮件，返回 {"success": bool, "error": str}。"""
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        return {"success": False, "error": "Gmail 未配置（GMAIL_USER / GMAIL_APP_PASSWORD）"}
+    """通过 Resend API 发送单封 HTML 邮件，返回 {"success": bool, "error": str}。"""
+    if not resend.api_key:
+        return {"success": False, "error": "Resend 未配置（RESEND_API_KEY）"}
 
-    msg = MIMEMultipart("alternative")
-    sender = f"{from_name} <{GMAIL_USER}>" if from_name else GMAIL_USER
-    msg["From"] = sender
-    msg["To"] = to
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body_html, "html", "utf-8"))
+    sender = f"{from_name} <{SENDER_EMAIL}>" if from_name else SENDER_EMAIL
 
-    socket.getaddrinfo = _ipv4_getaddrinfo
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-            smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            smtp.sendmail(GMAIL_USER, [to], msg.as_string())
+        resend.Emails.send({
+            "from": sender,
+            "to": [to],
+            "subject": subject,
+            "html": body_html,
+        })
         return {"success": True, "error": ""}
-    except smtplib.SMTPAuthenticationError:
-        return {"success": False, "error": "Gmail 认证失败，请检查应用密码"}
-    except (TimeoutError, OSError) as e:
-        return {"success": False, "error": f"SMTP 连接失败: {e}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
-    finally:
-        socket.getaddrinfo = _orig_getaddrinfo
 
 
 def send_bulk(
