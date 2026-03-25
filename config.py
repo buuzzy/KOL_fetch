@@ -6,6 +6,19 @@ load_dotenv()
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 TIKHUB_API_KEY = os.getenv("TIKHUB_API_KEY", "")
 
+def _collect_youtube_keys() -> list[str]:
+    """收集所有可用的 YouTube API Key（主 key + fallback keys）。"""
+    keys: list[str] = []
+    if YOUTUBE_API_KEY:
+        keys.append(YOUTUBE_API_KEY)
+    for i in range(1, 10):
+        k = os.getenv(f"YOUTUBE_API_KEY_fallback{i}", "")
+        if k:
+            keys.append(k)
+    return keys
+
+YOUTUBE_API_KEYS: list[str] = _collect_youtube_keys()
+
 # ── 关键词设计原则 ──
 # 所有关键词必须锚定"港澳受众"，不使用通用词（"投資"、"ETF"会引入台湾/印度/美国博主）
 # 策略：地域词 + 财经词 组合，确保搜出来的内容天然面向港澳群体

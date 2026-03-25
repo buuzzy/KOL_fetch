@@ -110,6 +110,7 @@ class TaskManager:
             )
 
             client = YouTubeClient()
+            state.logs.append(f"已加载 {len(client._api_keys)} 个 API Key")
             try:
                 kols = discover_kols(
                     client=client, keywords=keywords,

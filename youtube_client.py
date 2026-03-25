@@ -1,13 +1,12 @@
-"""YouTube Data API v3 客户端封装，使用 requests 直接调用 REST API。"""
+"""YouTube Data API v3 客户端封装，支持多 Key 自动轮转。"""
 
 import logging
 import socket
-import time
 
 import requests
 import urllib3.util.connection
 
-from config import YOUTUBE_API_KEY
+from config import YOUTUBE_API_KEY, YOUTUBE_API_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -37,33 +36,55 @@ class QuotaExhaustedError(Exception):
 
 
 class YouTubeClient:
-    def __init__(self, api_key: str = YOUTUBE_API_KEY):
-        if not api_key:
+    def __init__(self, api_keys: list[str] | None = None):
+        keys = api_keys or YOUTUBE_API_KEYS
+        if not keys:
             raise ValueError(
                 "YOUTUBE_API_KEY 未设置。请在 .env 文件中配置，"
                 "参考 .env.example"
             )
-        self._api_key = api_key
+        self._api_keys = keys
+        self._key_index = 0
         self._session = requests.Session()
-        self._quota_used = 0
+        self._quota_used: dict[int, int] = {i: 0 for i in range(len(keys))}
+        self._exhausted_keys: set[int] = set()
+        logger.info("YouTube API 已加载 %d 个 Key", len(keys))
         _force_ipv4()
 
     @property
+    def _api_key(self) -> str:
+        return self._api_keys[self._key_index]
+
+    @property
     def quota_used(self) -> int:
-        return self._quota_used
+        return sum(self._quota_used.values())
 
     @property
     def quota_remaining(self) -> int:
-        return DAILY_QUOTA_LIMIT - self._quota_used
+        return DAILY_QUOTA_LIMIT * len(self._api_keys) - self.quota_used
+
+    def _rotate_key(self) -> bool:
+        """切换到下一个可用 Key，返回是否成功。"""
+        self._exhausted_keys.add(self._key_index)
+        for i in range(len(self._api_keys)):
+            if i not in self._exhausted_keys:
+                old_idx = self._key_index
+                self._key_index = i
+                logger.info(
+                    "Key #%d 额度耗尽，切换到 Key #%d（共 %d 个）",
+                    old_idx + 1, i + 1, len(self._api_keys),
+                )
+                return True
+        return False
 
     def _consume_quota(self, operation: str, count: int = 1):
         cost = QUOTA_COSTS.get(operation, 1) * count
-        if self._quota_used + cost > DAILY_QUOTA_LIMIT:
-            raise QuotaExhaustedError(
-                f"Quota 不足: 已用 {self._quota_used}/{DAILY_QUOTA_LIMIT}, "
-                f"本次需要 {cost} ({operation})"
-            )
-        self._quota_used += cost
+        if self._quota_used[self._key_index] + cost > DAILY_QUOTA_LIMIT:
+            if not self._rotate_key():
+                raise QuotaExhaustedError(
+                    f"所有 {len(self._api_keys)} 个 Key 额度均已耗尽"
+                )
+        self._quota_used[self._key_index] += cost
 
     def _get(self, endpoint: str, params: dict) -> dict:
         params["key"] = self._api_key
@@ -76,7 +97,16 @@ class YouTubeClient:
                 data.get("error", {}).get("errors", [{}])[0].get("reason", "")
             )
             if error_reason in ("quotaExceeded", "dailyLimitExceeded"):
-                raise QuotaExhaustedError(f"API quota 已耗尽: {error_reason}")
+                if self._rotate_key():
+                    params["key"] = self._api_key
+                    resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
+                    data = resp.json()
+                    if resp.status_code != 403:
+                        resp.raise_for_status()
+                        return data
+                raise QuotaExhaustedError(
+                    f"所有 {len(self._api_keys)} 个 Key 额度均已耗尽"
+                )
             raise QuotaExhaustedError(f"API 返回 403: {data}")
 
         resp.raise_for_status()
