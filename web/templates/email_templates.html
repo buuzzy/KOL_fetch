@@ -111,12 +111,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="tpl-data" type="application/json">{{ email_templates | tojson }}</script>
 <script>
-var ALL_TEMPLATES = [
-  {% for tpl in email_templates %}
-  { id: {{ tpl.id | tojson }}, name: {{ tpl.name | tojson }}, subject: {{ tpl.subject | tojson }}, body: {{ tpl.body | tojson }} },
-  {% endfor %}
-];
+var ALL_TEMPLATES = JSON.parse(document.getElementById('tpl-data').textContent || '[]');
 
 function templateManager() {
   return {

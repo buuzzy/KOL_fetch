@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}撰写邮件 - KOL 搜索中台{% endblock %}
+{% block title %}发送邮件 - KOL 搜索中台{% endblock %}
 
 {% block content %}
 <div class="mb-6">
@@ -9,32 +9,64 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </a>
-    <h2 class="text-2xl font-bold text-gray-900">撰写邮件</h2>
+    <h2 class="text-2xl font-bold text-gray-900">发送邮件</h2>
   </div>
   <p class="text-gray-500 mt-1">选择模板和收件人，批量发送合作邀请邮件</p>
 </div>
 
 <div x-data="composeApp()" x-init="init()">
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
     <!-- 左栏：模板选择 + 预览 -->
-    <div class="space-y-4">
+    <div class="space-y-5">
+      <!-- 模板选择 -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 class="font-semibold text-gray-900 mb-3">选择模板</h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-900">选择模板</h3>
+          <a href="/contacts/templates" class="text-xs text-blue-600 hover:text-blue-800 font-medium">管理模板 →</a>
+        </div>
+
         {% if email_templates %}
-        <select x-model="selectedTemplateId" @change="updatePreview()"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-          <option value="">请选择邮件模板...</option>
+        <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
           {% for tpl in email_templates %}
-          <option value="{{ tpl.id }}">{{ tpl.name }} — {{ tpl.subject }}</option>
+          <div @click="selectTemplate('{{ tpl.id }}')"
+               :class="selectedTemplateId === '{{ tpl.id }}'
+                 ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
+                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+               class="border rounded-lg p-3 cursor-pointer transition-all">
+            <div class="flex items-center gap-3">
+              <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                   :class="selectedTemplateId === '{{ tpl.id }}' ? 'bg-blue-100' : 'bg-gray-100'">
+                <svg class="w-4 h-4" :class="selectedTemplateId === '{{ tpl.id }}' ? 'text-blue-600' : 'text-gray-400'"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ tpl.name }}</p>
+                <p class="text-xs text-gray-500 truncate mt-0.5">{{ tpl.subject }}</p>
+              </div>
+              <div x-show="selectedTemplateId === '{{ tpl.id }}'" x-cloak class="shrink-0">
+                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+            </div>
+          </div>
           {% endfor %}
-        </select>
+        </div>
         {% else %}
-        <div class="text-sm text-gray-400">
-          暂无模板，请先 <a href="/contacts/templates" class="text-blue-600 hover:underline">创建模板</a>
+        <div class="text-center py-6 text-gray-400">
+          <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+          <p class="text-sm font-medium text-gray-500 mb-1">暂无模板</p>
+          <a href="/contacts/templates" class="text-sm text-blue-600 hover:underline">去创建模板 →</a>
         </div>
         {% endif %}
 
-        <div class="mt-4">
+        <div class="mt-4 pt-4 border-t border-gray-100">
           <label class="block text-sm font-medium text-gray-700 mb-1">发件人名称（可选）</label>
           <input type="text" x-model="fromName" placeholder="如：XXX 市场团队"
                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
@@ -42,17 +74,32 @@
         </div>
       </div>
 
-      <!-- 预览 -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="selectedTemplateId" x-cloak>
-        <h3 class="font-semibold text-gray-900 mb-3">邮件预览</h3>
-        <div class="border border-gray-200 rounded-lg overflow-hidden">
-          <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
-            <p class="text-xs text-gray-500">主题</p>
-            <p class="text-sm font-medium text-gray-900" x-text="previewSubject"></p>
+      <!-- 邮件预览 -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" x-show="selectedTemplateId" x-cloak
+           x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+        <div class="px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            <h3 class="text-sm font-semibold text-blue-800">邮件预览</h3>
           </div>
-          <div class="p-4 text-sm text-gray-700 prose prose-sm max-w-none" x-html="previewBody"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-2">预览中 <code class="bg-gray-100 px-1 rounded">｛｛name｝｝</code> 显示为第一个收件人的名称</p>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-medium text-gray-400 w-10 shrink-0">主题</span>
+            <p class="text-sm font-semibold text-gray-900" x-text="previewSubject"></p>
+          </div>
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50/50 text-sm text-gray-700 leading-relaxed max-h-64 overflow-y-auto prose prose-sm max-w-none"
+               x-html="previewBody"></div>
+          <p class="text-xs text-gray-400 mt-3 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <code class="bg-gray-100 px-1 rounded">｛｛name｝｝</code> 会被自动替换为收件人名称
+          </p>
+        </div>
       </div>
     </div>
 
@@ -60,7 +107,9 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-semibold text-gray-900">选择收件人</h3>
-        <span class="text-xs text-gray-400" x-text="'已选 ' + selectedContactIds.length + ' / ' + allContacts.length + ' 人'"></span>
+        <span class="text-xs px-2 py-1 rounded-full"
+              :class="selectedContactIds.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'"
+              x-text="'已选 ' + selectedContactIds.length + ' / ' + allContacts.length + ' 人'"></span>
       </div>
 
       {% if contacts %}
@@ -68,11 +117,11 @@
         <button type="button" @click="selectAllContacts()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">全选</button>
         <span class="text-gray-300">|</span>
         <button type="button" @click="clearAllContacts()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">清空</button>
-        <input type="text" x-model="contactSearch" placeholder="搜索..."
-               class="ml-auto px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none w-36">
+        <input type="text" x-model="contactSearch" placeholder="搜索姓名或邮箱..."
+               class="ml-auto px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 outline-none w-40">
       </div>
 
-      <div class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+      <div class="max-h-[420px] overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
         {% for c in contacts %}
         <label class="flex items-center px-3 py-2.5 hover:bg-gray-50 cursor-pointer contact-item"
                data-search-text="{{ c.name|lower }} {{ c.email|lower }}"
@@ -106,10 +155,18 @@
   <div class="mt-6 flex items-center gap-4">
     <button @click="confirmSend()"
             :disabled="!selectedTemplateId || selectedContactIds.length === 0 || sending"
-            :class="(!selectedTemplateId || selectedContactIds.length === 0 || sending) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+            :class="(!selectedTemplateId || selectedContactIds.length === 0 || sending)
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700 shadow-sm hover:shadow'"
             class="px-6 py-2.5 text-white font-medium rounded-lg transition text-sm">
       <span x-show="!sending" x-text="'发送邮件 (' + selectedContactIds.length + ' 人)'"></span>
-      <span x-show="sending" x-cloak>发送中...</span>
+      <span x-show="sending" x-cloak class="flex items-center gap-2">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        发送中...
+      </span>
     </button>
     <span class="text-xs text-gray-400" x-show="!selectedTemplateId || selectedContactIds.length === 0">
       请选择模板并勾选至少一位收件人
@@ -117,21 +174,22 @@
   </div>
 
   <!-- 发送结果 -->
-  <div x-show="sendResult" x-cloak class="mt-6">
+  <div x-show="sendResult" x-cloak class="mt-6"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
       <h3 class="font-semibold text-gray-900 mb-3">发送结果</h3>
       <div class="grid grid-cols-3 gap-4 mb-4 max-w-md">
-        <div class="text-center">
+        <div class="text-center p-3 bg-gray-50 rounded-lg">
           <p class="text-2xl font-bold text-gray-900" x-text="sendResult?.total || 0"></p>
-          <p class="text-xs text-gray-500">总计</p>
+          <p class="text-xs text-gray-500 mt-1">总计</p>
         </div>
-        <div class="text-center">
+        <div class="text-center p-3 bg-green-50 rounded-lg">
           <p class="text-2xl font-bold text-green-600" x-text="sendResult?.success_count || 0"></p>
-          <p class="text-xs text-gray-500">成功</p>
+          <p class="text-xs text-gray-500 mt-1">成功</p>
         </div>
-        <div class="text-center">
+        <div class="text-center p-3 bg-red-50 rounded-lg">
           <p class="text-2xl font-bold text-red-500" x-text="sendResult?.fail_count || 0"></p>
-          <p class="text-xs text-gray-500">失败</p>
+          <p class="text-xs text-gray-500 mt-1">失败</p>
         </div>
       </div>
       <template x-if="sendResult?.details?.length">
@@ -139,7 +197,7 @@
           <template x-for="d in sendResult.details" :key="d.email">
             <div class="flex items-center justify-between px-3 py-2" :class="d.success ? '' : 'bg-red-50'">
               <span x-text="d.name + ' (' + d.email + ')'"></span>
-              <span x-text="d.success ? '成功' : d.error" :class="d.success ? 'text-green-600' : 'text-red-600'"></span>
+              <span x-text="d.success ? '✓ 成功' : d.error" :class="d.success ? 'text-green-600 font-medium' : 'text-red-600'"></span>
             </div>
           </template>
         </div>
@@ -152,9 +210,10 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="compose-tpl-data" type="application/json">{{ email_templates | tojson }}</script>
 <script>
-const ALL_TEMPLATES = {{ email_templates | tojson }};
-const PRESELECTED = '{{ preselected_ids }}'.split(',').filter(Boolean);
+var ALL_TEMPLATES = JSON.parse(document.getElementById('compose-tpl-data').textContent || '[]');
+var PRESELECTED = '{{ preselected_ids }}'.split(',').filter(Boolean);
 
 function composeApp() {
   return {
@@ -177,6 +236,11 @@ function composeApp() {
         });
         this.updateContactSelection();
       }
+    },
+
+    selectTemplate(id) {
+      this.selectedTemplateId = id;
+      this.updatePreview();
     },
 
     updatePreview() {
@@ -210,14 +274,18 @@ function composeApp() {
 
     async confirmSend() {
       const count = this.selectedContactIds.length;
-      if (!confirm(`确定向 ${count} 位 KOL 发送邮件？\n\n发送过程可能需要数十秒，请耐心等待。`)) return;
+      const ok = await showConfirm(
+        `确定向 ${count} 位 KOL 发送邮件？发送过程可能需要数十秒，请耐心等待。`,
+        { title: '确认发送', type: 'info', confirmText: '确认发送' }
+      );
+      if (!ok) return;
 
       this.sending = true;
       this.sendResult = null;
 
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 60000);
+        const timer = setTimeout(() => controller.abort(), 90000);
         const res = await fetch('/api/contacts/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -229,11 +297,27 @@ function composeApp() {
           signal: controller.signal,
         });
         clearTimeout(timer);
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          showToast(errData.error || `发送失败 (${res.status})`, 'error');
+          return;
+        }
+
         this.sendResult = await res.json();
+        const sc = this.sendResult.success_count || 0;
+        const fc = this.sendResult.fail_count || 0;
+        if (fc === 0) {
+          showToast(`全部 ${sc} 封邮件发送成功`, 'success');
+        } else {
+          showToast(`成功 ${sc} 封，失败 ${fc} 封`, 'warning');
+        }
       } catch (e) {
-        var msg = e.name === 'AbortError' ? '请求超时，请稍后重试' : '发送请求失败: ' + e;
-        if (typeof showToast === 'function') showToast(msg, 'error');
-        else alert(msg);
+        if (e.name === 'AbortError') {
+          showToast('请求超时，请稍后重试', 'error');
+        } else {
+          showToast('发送请求失败: ' + e.message, 'error');
+        }
       } finally {
         this.sending = false;
       }
