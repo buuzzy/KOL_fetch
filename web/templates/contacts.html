@@ -138,8 +138,8 @@
           data-status="{{ c.contact_status | default('pending') }}"
           data-has-email="{{ '1' if c.email else '0' }}"
           data-has-contact="{{ '1' if c._has_contact else '0' }}"
-          data-followerCount="{{ c.follower_count | default(0) }}"
-          data-hkScore="{{ c.hk_relevance_score | default(0) }}">
+          data-follower-count="{{ c.follower_count | default(0) }}"
+          data-hk-score="{{ c.hk_relevance_score | default(0) }}">
         <td class="px-4 py-2.5">
           <input type="checkbox" class="contact-cb rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                  value="{{ c.id }}" data-email="{{ c.email or '' }}" data-profile-url="{{ c.profile_url or '' }}"
