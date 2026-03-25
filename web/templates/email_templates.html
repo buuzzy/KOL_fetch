@@ -87,9 +87,9 @@
           </p>
         </div>
         <div class="flex items-center gap-2 ml-4 shrink-0">
-          <button @click="startEdit('{{ tpl.id }}', {{ tpl.name | tojson }}, {{ tpl.subject | tojson }}, {{ tpl.body | tojson }})"
+          <button @click="startEditById('{{ tpl.id }}')"
                   class="text-sm text-blue-600 hover:text-blue-800 transition">编辑</button>
-          <button @click="deleteTpl('{{ tpl.id }}', {{ tpl.name | tojson }})"
+          <button @click="deleteTplById('{{ tpl.id }}')"
                   class="text-sm text-red-400 hover:text-red-600 transition">删除</button>
         </div>
       </div>
@@ -112,6 +112,12 @@
 
 {% block scripts %}
 <script>
+var ALL_TEMPLATES = [
+  {% for tpl in email_templates %}
+  { id: {{ tpl.id | tojson }}, name: {{ tpl.name | tojson }}, subject: {{ tpl.subject | tojson }}, body: {{ tpl.body | tojson }} },
+  {% endfor %}
+];
+
 function templateManager() {
   return {
     showCreate: false,
@@ -155,6 +161,11 @@ function templateManager() {
       this.formBody = this.htmlToText(body);
     },
 
+    startEditById(id) {
+      var tpl = ALL_TEMPLATES.find(function(t) { return t.id === id; });
+      if (tpl) this.startEdit(tpl.id, tpl.name, tpl.subject, tpl.body);
+    },
+
     handleSubmit(formEl) {
       if (this.editingId) {
         this.saveEdit();
@@ -174,14 +185,20 @@ function templateManager() {
         }),
       });
       if (res.ok) { location.reload(); }
-      else { alert('保存失败'); }
+      else { showToast('保存失败', 'error'); }
     },
 
     async deleteTpl(id, name) {
-      if (!confirm(`确定删除模板「${name}」？`)) return;
+      const ok = await showConfirm(`确定删除模板「${name}」？`);
+      if (!ok) return;
       const res = await fetch(`/api/contacts/templates/${id}`, { method: 'DELETE' });
       if (res.ok) { location.reload(); }
-      else { alert('删除失败'); }
+      else { showToast('删除失败', 'error'); }
+    },
+
+    async deleteTplById(id) {
+      var tpl = ALL_TEMPLATES.find(function(t) { return t.id === id; });
+      if (tpl) this.deleteTpl(tpl.id, tpl.name);
     },
   };
 }

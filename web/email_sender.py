@@ -12,7 +12,7 @@ GMAIL_USER = os.getenv("GMAIL_USER") or os.getenv("IMAP_USER", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("IMAP_PASSWORD", "")
 
 SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 465
+SMTP_PORT = 587
 
 _orig_getaddrinfo = socket.getaddrinfo
 
@@ -188,7 +188,10 @@ def send_email(
 
     socket.getaddrinfo = _ipv4_getaddrinfo
     try:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
             smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             smtp.sendmail(GMAIL_USER, [to], msg.as_string())
         return {"success": True, "error": ""}
