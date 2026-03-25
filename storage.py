@@ -3,7 +3,7 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 
 from discovery import KOL
@@ -232,7 +232,27 @@ def save_snapshot_db(kols_data: list[dict], platform: str,
 def load_snapshot_db(snapshot_id: str) -> dict | None:
     """从 Supabase 加载一条快照，返回完整行或 None。"""
     resp = _get_db().table("snapshots").select("*").eq("id", snapshot_id).execute()
-    return resp.data[0] if resp.data else None
+    if not resp.data:
+        return None
+    row = resp.data[0]
+    row["created_at"] = _utc_to_local(row.get("created_at", ""))
+    return row
+
+
+_UTC8 = timezone(timedelta(hours=8))
+
+
+def _utc_to_local(iso_str: str) -> str:
+    """将 Supabase 返回的 UTC 时间字符串转为 UTC+8 并格式化。"""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_UTC8).strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return iso_str
 
 
 def list_snapshots_db(platform: str | None = None) -> list[dict]:
@@ -243,7 +263,10 @@ def list_snapshots_db(platform: str | None = None) -> list[dict]:
     if platform:
         query = query.eq("platform", platform)
     resp = query.execute()
-    return resp.data or []
+    rows = resp.data or []
+    for row in rows:
+        row["created_at"] = _utc_to_local(row.get("created_at", ""))
+    return rows
 
 
 def delete_snapshot_db(snapshot_id: str):
