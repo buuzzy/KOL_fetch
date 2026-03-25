@@ -2,6 +2,7 @@
 
 import os
 import re
+import socket
 import smtplib
 import time
 from email.mime.multipart import MIMEMultipart
@@ -12,6 +13,14 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("IMAP_PASSWORD
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
+
+_orig_getaddrinfo = socket.getaddrinfo
+
+def _ipv4_getaddrinfo(*args, **kwargs):
+    """过滤掉 IPv6 结果，强制使用 IPv4（Render 等云平台 IPv6 不可达）。"""
+    results = _orig_getaddrinfo(*args, **kwargs)
+    ipv4 = [r for r in results if r[0] == socket.AF_INET]
+    return ipv4 if ipv4 else results
 
 _EMAIL_RE = re.compile(
     r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
@@ -177,6 +186,7 @@ def send_email(
     msg["Subject"] = subject
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
+    socket.getaddrinfo = _ipv4_getaddrinfo
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
             smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
@@ -185,9 +195,11 @@ def send_email(
     except smtplib.SMTPAuthenticationError:
         return {"success": False, "error": "Gmail 认证失败，请检查应用密码"}
     except (TimeoutError, OSError) as e:
-        return {"success": False, "error": f"SMTP 连接超时: {e}"}
+        return {"success": False, "error": f"SMTP 连接失败: {e}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        socket.getaddrinfo = _orig_getaddrinfo
 
 
 def send_bulk(
