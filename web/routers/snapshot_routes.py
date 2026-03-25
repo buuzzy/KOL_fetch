@@ -76,8 +76,7 @@ async def snapshots_page(request: Request):
         s["keywords_summary"] = kws[:6]
         s["keywords_total"] = len(kws)
 
-    return templates.TemplateResponse("snapshots.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "snapshots.html", context={
         "active_page": "snapshots",
         "user_email": user.email,
         "snapshots": all_snapshots,
@@ -92,8 +91,7 @@ async def snapshot_detail_page(request: Request, snapshot_id: str):
 
     snap = load_snapshot_db(snapshot_id)
     if not snap:
-        return templates.TemplateResponse("snapshot_detail.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "snapshot_detail.html", context={
             "active_page": "snapshots",
             "user_email": user.email,
             "snapshot_id": snapshot_id,
@@ -108,8 +106,7 @@ async def snapshot_detail_page(request: Request, snapshot_id: str):
     search_params = snap.get("search_params") or {}
     display_params = _build_display_params(search_params, platform)
 
-    return templates.TemplateResponse("snapshot_detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "snapshot_detail.html", context={
         "active_page": "snapshots",
         "user_email": user.email,
         "snapshot_id": snapshot_id,
@@ -139,8 +136,7 @@ async def diff_page(request: Request):
     for s in yt_list + ig_list:
         s["label"] = _snapshot_label(s)
 
-    return templates.TemplateResponse("diff.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "diff.html", context={
         "active_page": "diff",
         "user_email": user.email,
         "yt_snapshots": yt_list,
@@ -165,8 +161,7 @@ async def do_diff(
         ig_list = list_snapshots_db("instagram")
         for s in yt_list + ig_list:
             s["label"] = _snapshot_label(s)
-        return templates.TemplateResponse("diff.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "diff.html", context={
             "active_page": "diff",
             "user_email": user.email,
             "yt_snapshots": yt_list,
@@ -213,8 +208,7 @@ async def do_diff(
     for s in yt_list + ig_list:
         s["label"] = _snapshot_label(s)
 
-    return templates.TemplateResponse("diff.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "diff.html", context={
         "active_page": "diff",
         "user_email": user.email,
         "yt_snapshots": yt_list,

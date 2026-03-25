@@ -38,8 +38,7 @@ async def dashboard_page(request: Request):
             t_dict["created_at_display"] = f"{int(elapsed // 3600)} 小时前"
         task_display.append(t_dict)
 
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "dashboard.html", context={
         "active_page": "dashboard",
         "user_email": user.email,
         "yt_snapshot_count": len(yt_snapshots),
@@ -62,8 +61,7 @@ async def discover_page(request: Request):
     )
 
     platform = request.query_params.get("platform", "youtube")
-    return templates.TemplateResponse("discover.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "discover.html", context={
         "active_page": "discover",
         "user_email": user.email,
         "platform": platform,
@@ -134,16 +132,14 @@ async def task_progress_page(request: Request, task_id: str):
 
     state = task_manager.get_state(task_id)
     if not state:
-        return templates.TemplateResponse("task_progress.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "task_progress.html", context={
             "active_page": "discover",
             "user_email": user.email,
             "task_id": task_id,
             "task": None,
         })
 
-    return templates.TemplateResponse("task_progress.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "task_progress.html", context={
         "active_page": "discover",
         "user_email": user.email,
         "task_id": task_id,

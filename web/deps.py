@@ -13,9 +13,6 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 WEB_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
-# Jinja2 3.1.4/3.1.5 的 LRU cache 在 _load_template 中将 globals 加入
-# cache_key 导致 TypeError: unhashable type: 'dict'。禁用缓存可绕过该问题。
-templates.env.cache = None
 
 _admin_client: Client | None = None
 

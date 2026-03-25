@@ -50,8 +50,7 @@ async def contacts_page(request: Request):
     with_email = sum(1 for c in contacts if c.get("email"))
     with_contact = sum(1 for c in contacts if c.get("_has_contact"))
 
-    return templates.TemplateResponse("contacts.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "contacts.html", context={
         "active_page": "contacts",
         "user_email": user.email,
         "contacts": contacts,
@@ -246,8 +245,7 @@ async def templates_page(request: Request):
     client = get_admin_client()
     resp = client.table("email_templates").select("*").order("created_at", desc=True).execute()
 
-    return templates.TemplateResponse("email_templates.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "email_templates.html", context={
         "active_page": "contacts",
         "user_email": user.email,
         "email_templates": resp.data or [],
@@ -326,8 +324,7 @@ async def compose_page(request: Request):
 
     preselected = request.query_params.get("ids", "")
 
-    return templates.TemplateResponse("email_compose.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "email_compose.html", context={
         "active_page": "contacts",
         "user_email": user.email,
         "email_templates": tpl_resp.data or [],

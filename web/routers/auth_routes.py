@@ -13,7 +13,7 @@ async def login_page(request: Request):
     user = await get_current_user(request)
     if user:
         return RedirectResponse("/dashboard", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", context={"error": None})
 
 
 @router.post("/api/auth/login")
@@ -38,8 +38,8 @@ async def api_login(request: Request, email: str = Form(...), password: str = Fo
         elif "Email not confirmed" in str(e):
             error_msg = "邮箱未验证，请检查邮箱"
         return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": error_msg},
+            request, "login.html",
+            context={"error": error_msg},
             status_code=401,
         )
 
