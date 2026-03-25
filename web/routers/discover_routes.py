@@ -57,7 +57,6 @@ async def discover_page(request: Request):
 
     from config import (
         SEARCH_KEYWORDS, SEARCH_KEYWORDS_EXTENDED, SEARCH_KEYWORDS_LONG_TAIL,
-        IG_SEARCH_KEYWORDS,
     )
 
     platform = request.query_params.get("platform", "youtube")
@@ -68,7 +67,6 @@ async def discover_page(request: Request):
         "yt_core_keywords": SEARCH_KEYWORDS,
         "yt_extended_keywords": SEARCH_KEYWORDS_EXTENDED,
         "yt_longtail_keywords": SEARCH_KEYWORDS_LONG_TAIL,
-        "ig_keywords": IG_SEARCH_KEYWORDS,
     })
 
 

@@ -15,10 +15,11 @@
             class="px-5 py-2 rounded-md text-sm font-medium transition">
       YouTube
     </button>
-    <button @click="platform = 'instagram'"
-            :class="platform === 'instagram' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-            class="px-5 py-2 rounded-md text-sm font-medium transition">
+    <button disabled
+            class="px-5 py-2 rounded-md text-sm font-medium text-gray-300 cursor-not-allowed flex items-center gap-1.5"
+            title="Instagram 搜索即将上线">
       Instagram
+      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-600">即将上线</span>
     </button>
   </div>
 
@@ -196,82 +197,20 @@
     </form>
   </div>
 
-  <!-- ═══ Instagram 表单 ═══ -->
-  <div x-show="platform === 'instagram'" x-cloak
-       x-data="igKeywords()" x-init="init()">
-    <form method="POST" action="/api/discover/instagram"
-          class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-3xl space-y-6">
-
-      <div>
-        <h3 class="font-semibold text-gray-900 text-lg">Instagram 博主搜索</h3>
-        <p class="text-sm text-gray-500 mt-1">搜索港澳财经相关的 IG 博主</p>
+  <!-- ═══ Instagram（即将上线）═══ -->
+  <div x-show="platform === 'instagram'" x-cloak>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 max-w-3xl text-center">
+      <div class="w-16 h-16 bg-pink-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-pink-300" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
       </div>
-
-      <!-- 关键词 -->
-      <div>
-        <label class="block text-sm font-medium text-gray-900 mb-1">搜索关键词</label>
-        <p class="text-xs text-gray-500 mb-3">选择搜索词，系统会在 Instagram 上搜索包含这些词的用户</p>
-
-        <div class="flex items-center space-x-3 mb-3">
-          <button type="button" @click="selectAll()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">全选</button>
-          <span class="text-gray-300">|</span>
-          <button type="button" @click="clearAll()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">清空</button>
-          <span class="text-xs text-gray-400 ml-auto" x-text="'已选 ' + selected.length + ' / ' + allKeywords.length + ' 个'"></span>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <template x-for="kw in allKeywords" :key="kw">
-            <button type="button" @click="toggle(kw)"
-                    :class="selected.includes(kw)
-                      ? 'bg-pink-50 border-pink-400 text-pink-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'"
-                    class="px-3 py-1.5 rounded-full border text-sm transition cursor-pointer">
-              <span x-text="kw"></span>
-            </button>
-          </template>
-        </div>
-
-        <details class="mt-3">
-          <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">补充自定义关键词（可选）</summary>
-          <textarea name="custom_keywords" rows="2"
-                    class="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none resize-y"
-                    placeholder="每行一个，会和上面选中的词一起使用"></textarea>
-        </details>
-
-        <input type="hidden" name="selected_keywords" :value="selected.join('\n')">
-      </div>
-
-      <!-- 粉丝范围 -->
-      <div>
-        <label class="block text-sm font-medium text-gray-900 mb-1">目标博主规模</label>
-        <p class="text-xs text-gray-500 mb-3">筛选粉丝量在此范围内的博主</p>
-        <div class="grid grid-cols-2 gap-4 max-w-md">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">最少粉丝数</label>
-            <input type="number" name="min_followers" value="1000" min="0"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">最多粉丝数</label>
-            <input type="number" name="max_followers" value="200000" min="0"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none">
-          </div>
-        </div>
-      </div>
-
-      <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-        TikHub API 按次收费 ($0.002/次)，请注意费用控制。
-      </div>
-
-      <div class="pt-2">
-        <button type="submit" :disabled="selected.length === 0"
-                :class="selected.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700'"
-                class="px-6 py-2.5 text-white font-medium rounded-lg transition text-sm">
-          开始搜索
-        </button>
-        <span class="text-xs text-gray-400 ml-3" x-show="selected.length === 0">请至少选择一个关键词</span>
-      </div>
-    </form>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Instagram 博主搜索</h3>
+      <p class="text-sm text-gray-500 mb-4">IG 博主搜索功能正在接入中，敬请期待</p>
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
+        Coming Soon
+      </span>
+    </div>
   </div>
 </div>
 
@@ -304,19 +243,5 @@ function ytKeywords() {
   };
 }
 
-function igKeywords() {
-  return {
-    allKeywords: {{ ig_keywords | tojson }},
-    selected: [],
-    init() { this.selected = [...this.allKeywords]; },
-    toggle(kw) {
-      const idx = this.selected.indexOf(kw);
-      if (idx === -1) this.selected.push(kw);
-      else this.selected.splice(idx, 1);
-    },
-    selectAll() { this.selected = [...this.allKeywords]; },
-    clearAll() { this.selected = []; },
-  };
-}
 </script>
 {% endblock %}
