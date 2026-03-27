@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 data/
 output/
+backend/data/
+backend/output/
 .DS_Store
 .cursor/
 *.egg-info/
@@ -10,3 +12,5 @@ dist/
 build/
 venv/
 .venv/
+node_modules/
+frontend/dist/

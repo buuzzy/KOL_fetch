@@ -6,7 +6,7 @@ steps:
       - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/kol-fetch/kol-web:$COMMIT_SHA'
       - '-t'
       - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/kol-fetch/kol-web:latest'
-      - '.'
+      - './backend'
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
