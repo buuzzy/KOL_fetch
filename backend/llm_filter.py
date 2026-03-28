@@ -196,13 +196,17 @@ def _normalize_candidates(kols: list, platform: str) -> list[dict]:
     result = []
     for k in kols:
         d = k.to_dict() if hasattr(k, "to_dict") else dict(k)
+        recent_titles = d.get("recent_titles", [])
+        if not recent_titles and d.get("recent_posts"):
+            recent_titles = [p for p in d["recent_posts"] if p]
+
         normalized = {
             "id": d.get("channel_id") or d.get("username", ""),
             "name": d.get("name", ""),
             "followers": d.get("subscriber_count") or d.get("follower_count", 0),
             "bio": d.get("description") or d.get("biography", ""),
             "category": d.get("category", ""),
-            "recent_titles": d.get("recent_titles", []),
+            "recent_titles": recent_titles,
             "tags": d.get("content_focus", []),
             "platform": platform,
             "_original": k,

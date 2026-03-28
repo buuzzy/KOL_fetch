@@ -105,6 +105,93 @@ def export_ig_excel(kols: list, filename: str = "") -> str:
     return filepath
 
 
+def export_threads_csv(kols: list, filename: str = "") -> str:
+    if not filename:
+        filename = f"threads_kol_list_{datetime.now().strftime('%Y%m%d')}.csv"
+    filepath = os.path.join(OUTPUT_DIR, filename)
+
+    with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "序号", "KOL名称", "用户名", "平台", "粉丝数",
+            "认证", "内容方向", "港澳相关度",
+            "主页链接", "发现关键词",
+        ])
+        for i, kol in enumerate(kols, 1):
+            writer.writerow([
+                i,
+                kol.name,
+                f"@{kol.username}",
+                "Threads",
+                kol.follower_count,
+                "是" if kol.is_verified else "否",
+                ", ".join(kol.content_focus) if kol.content_focus else "待分析",
+                kol.hk_relevance_score,
+                kol.profile_url,
+                ", ".join(kol.discovered_via_keywords),
+            ])
+    return filepath
+
+
+def export_threads_excel(kols: list, filename: str = "") -> str:
+    if not filename:
+        filename = f"threads_kol_list_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    filepath = os.path.join(OUTPUT_DIR, filename)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Threads KOL列表"
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    headers = [
+        "序号", "KOL名称", "用户名", "平台", "粉丝数",
+        "认证", "内容方向", "港澳相关度",
+        "主页链接", "发现关键词",
+    ]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+
+    for i, kol in enumerate(kols, 1):
+        row = i + 1
+        values = [
+            i,
+            kol.name,
+            f"@{kol.username}",
+            "Threads",
+            kol.follower_count,
+            "是" if kol.is_verified else "否",
+            ", ".join(kol.content_focus) if kol.content_focus else "待分析",
+            kol.hk_relevance_score,
+            kol.profile_url,
+            ", ".join(kol.discovered_via_keywords),
+        ]
+        for col, value in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            if col == 9:
+                cell.font = Font(color="0563C1", underline="single")
+
+    col_widths = [6, 25, 20, 12, 12, 8, 20, 10, 40, 20]
+    for i, width in enumerate(col_widths, 1):
+        col_letter = chr(64 + i) if i <= 26 else chr(64 + (i - 1) // 26) + chr(64 + (i - 1) % 26 + 1)
+        ws.column_dimensions[col_letter].width = width
+
+    ws.auto_filter.ref = ws.dimensions
+    wb.save(filepath)
+    return filepath
+
+
 def export_csv(kols: list[KOL], filename: str = "") -> str:
     if not filename:
         filename = f"kol_list_{datetime.now().strftime('%Y%m%d')}.csv"

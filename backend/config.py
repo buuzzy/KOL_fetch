@@ -84,6 +84,21 @@ IG_SEARCH_KEYWORDS = [
 IG_MIN_FOLLOWERS = 1_000
 IG_MAX_FOLLOWERS = 200_000
 
+# ── Threads 配置 ──
+THREADS_SEARCH_KEYWORDS = [
+    "港股",
+    "恒指",
+    "投資",
+    "理財",
+    "美股",
+    "股票",
+    "財經",
+    "加密貨幣",
+]
+
+THREADS_MIN_FOLLOWERS = 500
+THREADS_MAX_FOLLOWERS = 500_000
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 

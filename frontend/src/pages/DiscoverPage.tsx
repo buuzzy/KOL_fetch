@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
-  getKeywords, getIGKeywords, getLLMOptions, submitYoutube, submitInstagram,
+  getKeywords, getIGKeywords, getThreadsKeywords, getLLMOptions,
+  submitYoutube, submitInstagram, submitThreads,
   runHealthCheck,
   type LLMCriteria, type LLMOption, type HealthCheckResult,
 } from '../api/discover'
 
-type Platform = 'youtube' | 'instagram'
+type Platform = 'youtube' | 'instagram' | 'threads'
 
 const DEFAULT_CRITERIA: LLMCriteria = {
   kol_types: [],
@@ -20,11 +21,11 @@ export default function DiscoverPage() {
   const [searchParams] = useSearchParams()
   const paramPlatform = searchParams.get('platform')
   const [platform, setPlatform] = useState<Platform>(
-    paramPlatform === 'instagram' ? 'instagram' : 'youtube'
+    paramPlatform === 'instagram' ? 'instagram' : paramPlatform === 'threads' ? 'threads' : 'youtube'
   )
 
   useEffect(() => {
-    if (paramPlatform === 'instagram' || paramPlatform === 'youtube') {
+    if (paramPlatform === 'instagram' || paramPlatform === 'youtube' || paramPlatform === 'threads') {
       setPlatform(paramPlatform)
     }
   }, [paramPlatform])
@@ -39,23 +40,25 @@ export default function DiscoverPage() {
         <HealthCheckButton />
       </div>
 
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 max-w-xs mb-6">
-        {(['youtube', 'instagram'] as const).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPlatform(p)}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition ${
-              platform === p
-                ? p === 'youtube' ? 'bg-white text-red-600 shadow-sm' : 'bg-white text-pink-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {p === 'youtube' ? 'YouTube' : 'Instagram'}
-          </button>
-        ))}
+      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 max-w-md mb-6">
+        {(['youtube', 'instagram', 'threads'] as const).map((p) => {
+          const labels: Record<Platform, string> = { youtube: 'YouTube', instagram: 'Instagram', threads: 'Threads' }
+          const colors: Record<Platform, string> = { youtube: 'text-red-600', instagram: 'text-pink-600', threads: 'text-gray-900' }
+          return (
+            <button
+              key={p}
+              onClick={() => setPlatform(p)}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition ${
+                platform === p ? `bg-white ${colors[p]} shadow-sm` : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {labels[p]}
+            </button>
+          )
+        })}
       </div>
 
-      {platform === 'youtube' ? <YouTubeForm /> : <InstagramForm />}
+      {platform === 'youtube' ? <YouTubeForm /> : platform === 'instagram' ? <InstagramForm /> : <ThreadsForm />}
     </>
   )
 }
@@ -111,7 +114,7 @@ function HealthCheckButton() {
           <p className="text-xs font-semibold text-gray-900 mb-3">接口连通性</p>
           {([
             { key: 'youtube' as const, label: 'YouTube API', detail: result.youtube.ok ? `${result.youtube.keys} 个 Key` : result.youtube.error },
-            { key: 'tikhub' as const, label: 'TikHub (IG)', detail: result.tikhub.ok ? '正常' : result.tikhub.error },
+            { key: 'tikhub' as const, label: 'TikHub (IG/Threads)', detail: result.tikhub.ok ? '正常' : result.tikhub.error },
             { key: 'llm' as const, label: 'LLM 精筛', detail: result.llm.ok ? result.llm.model : result.llm.error },
           ]).map((item) => (
             <div key={item.key} className="flex items-start py-1.5">
@@ -554,6 +557,110 @@ function InstagramForm() {
         disabled={selected.length === 0 || mutation.isPending}
         className={`w-full py-2.5 text-white font-medium rounded-lg transition text-sm ${
           selected.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700'
+        }`}
+      >
+        {mutation.isPending ? '提交中...' : `开始搜索（${selected.length} 个关键词）`}
+      </button>
+    </form>
+  )
+}
+
+
+/* ═══════════════════ Threads 表单 ═══════════════════ */
+
+function ThreadsForm() {
+  const navigate = useNavigate()
+  const { data: threadsData } = useQuery({ queryKey: ['threads-keywords'], queryFn: getThreadsKeywords })
+
+  const [selected, setSelected] = useState<string[]>([])
+  const [customKeywords, setCustomKeywords] = useState('')
+  const [minFollowers, setMinFollowers] = useState(500)
+  const [maxFollowers, setMaxFollowers] = useState(500000)
+  const [initialized, setInitialized] = useState(false)
+  const [criteria, setCriteria] = useState<LLMCriteria>({ ...DEFAULT_CRITERIA })
+  const [llmEnabled, setLlmEnabled] = useState(true)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const keywords = threadsData?.keywords || []
+
+  if (keywords.length > 0 && !initialized) {
+    setSelected([...keywords])
+    setInitialized(true)
+  }
+
+  const mutation = useMutation({
+    mutationFn: submitThreads,
+    onSuccess: (data) => navigate(`/tasks/${data.task_id}`),
+  })
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    mutation.mutate({
+      selected_keywords: selected.join('\n'),
+      custom_keywords: customKeywords,
+      min_followers: minFollowers,
+      max_followers: maxFollowers,
+      llm_criteria: llmEnabled ? criteria : null,
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl space-y-4">
+      <div>
+        <h3 className="font-semibold text-gray-900">Threads 博主搜索</h3>
+        <p className="text-xs text-gray-500 mt-1">通过 TikHub API 搜索内容并提取博主，每个关键词约 $0.004（top + recent）</p>
+      </div>
+
+      {/* 关键词 */}
+      <MultiSelect
+        label="搜索关键词"
+        items={keywords}
+        selected={selected}
+        onChange={setSelected}
+      />
+
+      <details>
+        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">补充自定义关键词</summary>
+        <textarea
+          value={customKeywords} onChange={(e) => setCustomKeywords(e.target.value)}
+          rows={2}
+          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none resize-y"
+          placeholder="每行一个（建议用短词，如「港股」「恒指」）"
+        />
+      </details>
+
+      {/* 粉丝范围 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">最少粉丝</label>
+          <input type="number" value={minFollowers} onChange={(e) => setMinFollowers(+e.target.value)} min={0}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 outline-none" />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">最多粉丝</label>
+          <input type="number" value={maxFollowers} onChange={(e) => setMaxFollowers(+e.target.value)} min={0}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 outline-none" />
+        </div>
+      </div>
+
+      {/* AI 精筛 */}
+      <LLMPanel
+        enabled={llmEnabled}
+        onToggle={setLlmEnabled}
+        criteria={criteria}
+        onChange={setCriteria}
+        showAdvanced={showAdvanced}
+        onToggleAdvanced={() => setShowAdvanced(!showAdvanced)}
+        accentClass="text-gray-800"
+        ringClass="focus:ring-gray-500"
+      />
+
+      {/* 提交 */}
+      <button
+        type="submit"
+        disabled={selected.length === 0 || mutation.isPending}
+        className={`w-full py-2.5 text-white font-medium rounded-lg transition text-sm ${
+          selected.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800'
         }`}
       >
         {mutation.isPending ? '提交中...' : `开始搜索（${selected.length} 个关键词）`}

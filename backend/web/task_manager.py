@@ -42,6 +42,7 @@ class _TaskLogHandler(logging.Handler):
 class TaskManager:
     _YOUTUBE_LOGGERS = ["discovery", "youtube_client", "llm_filter"]
     _IG_LOGGERS = ["instagram_discovery", "instagram_client", "llm_filter"]
+    _THREADS_LOGGERS = ["threads_discovery", "threads_client", "llm_filter"]
 
     def __init__(self, max_workers: int = 2):
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -343,6 +344,151 @@ class TaskManager:
             state.status = "failed"
             state.error = str(e)
             state.logs.append(f"[IG] 任务失败: {e}")
+            self._update_db_finish(state.task_id, "failed", error=str(e))
+
+        finally:
+            for lg in loggers:
+                lg.removeHandler(handler)
+                lg.setLevel(saved_levels.get(lg.name, logging.NOTSET))
+
+    # ── Threads 任务 ──
+
+    def submit_threads(self, params: dict, user_id: str) -> str:
+        task_id = str(uuid.uuid4())
+        state = TaskState(task_id=task_id, task_type="threads", status="pending")
+        self._tasks[task_id] = state
+        self._save_to_db(state, user_id, params)
+        self._executor.submit(self._run_threads, state, params, user_id)
+        return task_id
+
+    def _run_threads(self, state: TaskState, params: dict, user_id: str):
+        handler = _TaskLogHandler(state)
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S"))
+        loggers = [logging.getLogger(n) for n in self._THREADS_LOGGERS]
+        saved_levels = {}
+        for lg in loggers:
+            saved_levels[lg.name] = lg.level
+            lg.setLevel(logging.DEBUG)
+            lg.addHandler(handler)
+
+        state.status = "running"
+        self._update_db_status(state.task_id, "running")
+
+        try:
+            from threads_client import ThreadsClient
+            from threads_discovery import discover_threads_kols
+            from report import export_threads_csv, export_threads_excel
+
+            min_followers = int(params.get("min_followers", 500))
+            max_followers = int(params.get("max_followers", 500000))
+
+            selected_kw = params.get("selected_keywords", "")
+            custom_kw = params.get("custom_keywords", "")
+            keywords = [k.strip() for k in selected_kw.strip().splitlines() if k.strip()]
+            if custom_kw.strip():
+                keywords += [k.strip() for k in custom_kw.strip().splitlines() if k.strip()]
+            keywords = list(dict.fromkeys(keywords))
+
+            if not keywords:
+                from config import THREADS_SEARCH_KEYWORDS
+                keywords = THREADS_SEARCH_KEYWORDS
+
+            from llm_filter import llm_filter_candidates, generate_summary
+
+            state.logs.append(
+                f"[Threads] 关键词: {len(keywords)} 个 | 粉丝范围: {min_followers:,} ~ {max_followers:,}"
+            )
+
+            client = ThreadsClient()
+            kols = discover_threads_kols(
+                client=client, keywords=keywords,
+                min_followers=min_followers, max_followers=max_followers,
+            )
+
+            if not kols:
+                state.logs.append("[Threads] 未找到符合条件的 KOL")
+                state.status = "completed"
+                state.result_summary = {
+                    "total": 0, "api_calls": client.request_count,
+                    "cost": round(client.estimated_cost, 3),
+                }
+                self._update_db_finish(state.task_id, "completed", state.result_summary)
+                return
+
+            rule_passed_count = len(kols)
+
+            llm_criteria = params.get("llm_criteria")
+            summary_text = ""
+
+            if llm_criteria is not None:
+                state.logs.append(f"[Threads] 规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
+                filter_result = llm_filter_candidates(kols, "threads", criteria=llm_criteria)
+                kols = [entry["_original"] for entry in filter_result.passed]
+
+                summary_text = generate_summary(
+                    filter_result, "Threads", keywords,
+                    min_followers, max_followers, rule_passed_count,
+                    criteria=llm_criteria,
+                )
+                filter_result.summary = summary_text
+                state.logs.append(f"[Threads] AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+
+                if not kols:
+                    state.logs.append("[Threads] AI 精筛后无符合条件的 KOL")
+                    state.status = "completed"
+                    state.result_summary = {
+                        "total": 0, "api_calls": client.request_count,
+                        "cost": round(client.estimated_cost, 3),
+                        "rule_passed": rule_passed_count,
+                        "llm_summary": summary_text,
+                    }
+                    self._update_db_finish(state.task_id, "completed", state.result_summary)
+                    return
+            else:
+                state.logs.append(f"[Threads] 规则筛选通过 {rule_passed_count} 个（AI 精筛已关闭）")
+
+            csv_path = export_threads_csv(kols)
+            xlsx_path = export_threads_excel(kols)
+
+            kols_data = [k.to_dict() for k in kols]
+            snapshot_id = self._save_snapshot_to_db(
+                kols_data, "threads", params, user_id,
+            )
+
+            state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
+            threads_summary: dict = {
+                "total": len(kols),
+                "api_calls": client.request_count,
+                "cost": round(client.estimated_cost, 3),
+                "rule_passed": rule_passed_count,
+                "snapshot_id": snapshot_id,
+                "top3": [{"name": k.name, "followers": k.follower_count} for k in kols[:3]],
+            }
+            if llm_criteria is not None:
+                threads_summary["llm_passed"] = len(kols)
+                threads_summary["llm_rejected"] = len(filter_result.rejected)
+                threads_summary["llm_summary"] = summary_text
+            state.result_summary = threads_summary
+            state.status = "completed"
+
+            if llm_criteria is not None:
+                state.logs.append(
+                    f"[Threads] 完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则 {rule_passed_count} → AI {len(kols)}), "
+                    f"费用 ${client.estimated_cost:.3f}"
+                )
+            else:
+                state.logs.append(
+                    f"[Threads] 完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则筛选 {rule_passed_count} 个), "
+                    f"费用 ${client.estimated_cost:.3f}"
+                )
+            self._update_db_finish(state.task_id, "completed", state.result_summary)
+
+        except Exception as e:
+            state.status = "failed"
+            state.error = str(e)
+            state.logs.append(f"[Threads] 任务失败: {e}")
             self._update_db_finish(state.task_id, "failed", error=str(e))
 
         finally:

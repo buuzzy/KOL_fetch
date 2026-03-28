@@ -31,6 +31,14 @@ def _build_display_params(search_params: dict, platform: str) -> dict:
             ),
             "活跃度": inactive_str,
         }
+    elif platform == "threads":
+        display = {
+            "平台": "Threads",
+            "粉丝范围": (
+                f"{int(search_params.get('min_followers', 500)):,} ~ "
+                f"{int(search_params.get('max_followers', 500000)):,}"
+            ),
+        }
     else:
         display = {
             "平台": "Instagram",
@@ -117,6 +125,11 @@ async def do_diff(body: DiffRequest, _user=Depends(require_auth)):
         from instagram_discovery import IGKOL
         old_kols = [IGKOL(**d) for d in old_data]
         new_kols = [IGKOL(**d) for d in new_data]
+        diff_result = diff_ig_snapshots(old_kols, new_kols)
+    elif body.platform == "threads":
+        from threads_discovery import ThreadsKOL
+        old_kols = [ThreadsKOL(**d) for d in old_data]
+        new_kols = [ThreadsKOL(**d) for d in new_data]
         diff_result = diff_ig_snapshots(old_kols, new_kols)
     else:
         old_kols = [KOL(**d) for d in old_data]

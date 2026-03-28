@@ -88,6 +88,22 @@ export async function submitInstagram(params: {
   return data
 }
 
+export async function getThreadsKeywords(): Promise<{ keywords: string[] }> {
+  const { data } = await client.get<{ keywords: string[] }>('/api/discover/threads-keywords')
+  return data
+}
+
+export async function submitThreads(params: {
+  selected_keywords: string
+  custom_keywords: string
+  min_followers: number
+  max_followers: number
+  llm_criteria: LLMCriteria | null
+}): Promise<{ task_id: string }> {
+  const { data } = await client.post('/api/discover/threads', params)
+  return data
+}
+
 export async function getTaskState(taskId: string): Promise<TaskItem> {
   const { data } = await client.get<TaskItem>(`/api/tasks/${taskId}`)
   return data

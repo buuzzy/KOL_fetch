@@ -129,6 +129,13 @@ async def import_from_snapshot(
             profile_url = d.get("profile_url", "")
             contact_text = d.get("description", "")
             hk_score = d.get("hk_relevance_score", 0)
+        elif platform == "threads":
+            platform_id = d.get("username", "")
+            name = d.get("name", "")
+            follower_count = d.get("follower_count", 0)
+            profile_url = d.get("profile_url", "")
+            contact_text = d.get("biography", "") or ""
+            hk_score = d.get("hk_relevance_score", 0)
         else:
             platform_id = d.get("username", "")
             name = d.get("name", "")

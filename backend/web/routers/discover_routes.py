@@ -18,6 +18,7 @@ router = APIRouter(tags=["discover"])
 async def dashboard_stats(_user=Depends(require_auth)):
     yt_snapshots = list_snapshots_db("youtube")
     ig_snapshots = list_snapshots_db("instagram")
+    threads_snapshots = list_snapshots_db("threads")
     all_tasks = task_manager.list_tasks()
     running = sum(1 for t in all_tasks if t.status == "running")
     completed_today = sum(
@@ -40,6 +41,7 @@ async def dashboard_stats(_user=Depends(require_auth)):
     return {
         "yt_snapshot_count": len(yt_snapshots),
         "ig_snapshot_count": len(ig_snapshots),
+        "threads_snapshot_count": len(threads_snapshots),
         "running_tasks": running,
         "completed_today": completed_today,
         "tasks": task_display,
@@ -62,6 +64,12 @@ async def discover_keywords(_user=Depends(require_auth)):
 async def discover_ig_keywords(_user=Depends(require_auth)):
     from config import IG_SEARCH_KEYWORDS
     return {"keywords": IG_SEARCH_KEYWORDS}
+
+
+@router.get("/api/discover/threads-keywords")
+async def discover_threads_keywords(_user=Depends(require_auth)):
+    from config import THREADS_SEARCH_KEYWORDS
+    return {"keywords": THREADS_SEARCH_KEYWORDS}
 
 
 @router.get("/api/discover/llm-options")
@@ -186,6 +194,27 @@ async def submit_instagram(body: InstagramDiscoverRequest, user=Depends(require_
         "llm_criteria": body.llm_criteria.model_dump() if body.llm_criteria else None,
     }
     task_id = task_manager.submit_instagram(params, user.id)
+    return {"task_id": task_id}
+
+
+class ThreadsDiscoverRequest(BaseModel):
+    selected_keywords: str = ""
+    custom_keywords: str = ""
+    min_followers: int = 500
+    max_followers: int = 500000
+    llm_criteria: LLMCriteria | None = LLMCriteria()
+
+
+@router.post("/api/discover/threads")
+async def submit_threads(body: ThreadsDiscoverRequest, user=Depends(require_auth)):
+    params = {
+        "selected_keywords": body.selected_keywords,
+        "custom_keywords": body.custom_keywords,
+        "min_followers": body.min_followers,
+        "max_followers": body.max_followers,
+        "llm_criteria": body.llm_criteria.model_dump() if body.llm_criteria else None,
+    }
+    task_id = task_manager.submit_threads(params, user.id)
     return {"task_id": task_id}
 
 
