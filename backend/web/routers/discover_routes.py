@@ -201,7 +201,7 @@ class ThreadsDiscoverRequest(BaseModel):
     selected_keywords: str = ""
     custom_keywords: str = ""
     min_followers: int = 500
-    max_followers: int = 500000
+    max_followers: int = 200000
     llm_criteria: LLMCriteria | None = LLMCriteria()
 
 

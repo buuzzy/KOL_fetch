@@ -36,7 +36,7 @@ def _build_display_params(search_params: dict, platform: str) -> dict:
             "平台": "Threads",
             "粉丝范围": (
                 f"{int(search_params.get('min_followers', 500)):,} ~ "
-                f"{int(search_params.get('max_followers', 500000)):,}"
+                f"{int(search_params.get('max_followers', 200000)):,}"
             ),
         }
     else:

@@ -380,7 +380,7 @@ class TaskManager:
             from report import export_threads_csv, export_threads_excel
 
             min_followers = int(params.get("min_followers", 500))
-            max_followers = int(params.get("max_followers", 500000))
+            max_followers = int(params.get("max_followers", 200000))
 
             selected_kw = params.get("selected_keywords", "")
             custom_kw = params.get("custom_keywords", "")
