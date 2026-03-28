@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import {
   getKeywords, getIGKeywords, getThreadsKeywords, getLLMOptions,
   submitYoutube, submitInstagram, submitThreads,
@@ -363,6 +364,7 @@ function YouTubeForm() {
   const mutation = useMutation({
     mutationFn: submitYoutube,
     onSuccess: (data) => navigate(`/tasks/${data.task_id}`),
+    onError: () => toast.error('提交失败，请检查网络连接或稍后重试'),
   })
 
   const handleSubmit = (e: FormEvent) => {
@@ -487,6 +489,7 @@ function InstagramForm() {
   const mutation = useMutation({
     mutationFn: submitInstagram,
     onSuccess: (data) => navigate(`/tasks/${data.task_id}`),
+    onError: () => toast.error('提交失败，请检查网络连接或稍后重试'),
   })
 
   const handleSubmit = (e: FormEvent) => {
@@ -575,7 +578,7 @@ function ThreadsForm() {
   const [selected, setSelected] = useState<string[]>([])
   const [customKeywords, setCustomKeywords] = useState('')
   const [minFollowers, setMinFollowers] = useState(500)
-  const [maxFollowers, setMaxFollowers] = useState(500000)
+  const [maxFollowers, setMaxFollowers] = useState(200000)
   const [initialized, setInitialized] = useState(false)
   const [criteria, setCriteria] = useState<LLMCriteria>({ ...DEFAULT_CRITERIA })
   const [llmEnabled, setLlmEnabled] = useState(true)
@@ -591,6 +594,7 @@ function ThreadsForm() {
   const mutation = useMutation({
     mutationFn: submitThreads,
     onSuccess: (data) => navigate(`/tasks/${data.task_id}`),
+    onError: () => toast.error('提交失败，请检查网络连接或稍后重试'),
   })
 
   const handleSubmit = (e: FormEvent) => {

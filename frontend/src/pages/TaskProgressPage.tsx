@@ -125,9 +125,11 @@ export default function TaskProgressPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              taskType === 'youtube' ? 'bg-red-100 text-red-700' : 'bg-pink-100 text-pink-700'
+              taskType === 'youtube' ? 'bg-red-100 text-red-700'
+              : taskType === 'threads' ? 'bg-gray-200 text-gray-800'
+              : 'bg-pink-100 text-pink-700'
             }`}>
-              {taskType === 'youtube' ? 'YouTube' : 'Instagram'}
+              {taskType === 'youtube' ? 'YouTube' : taskType === 'threads' ? 'Threads' : 'Instagram'}
             </span>
             <span className="inline-flex items-center text-sm">
               {status === 'running' && <><span className="w-2.5 h-2.5 rounded-full mr-2 animate-pulse bg-blue-500" />运行中</>}

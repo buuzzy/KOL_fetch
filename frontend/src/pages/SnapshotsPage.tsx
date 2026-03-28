@@ -47,9 +47,11 @@ export default function SnapshotsPage() {
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        s.platform === 'youtube' ? 'bg-red-100 text-red-700' : 'bg-pink-100 text-pink-700'
+                        s.platform === 'youtube' ? 'bg-red-100 text-red-700'
+                        : s.platform === 'threads' ? 'bg-gray-200 text-gray-800'
+                        : 'bg-pink-100 text-pink-700'
                       }`}>
-                        {s.platform === 'youtube' ? 'YouTube' : 'Instagram'}
+                        {s.platform === 'youtube' ? 'YouTube' : s.platform === 'threads' ? 'Threads' : 'Instagram'}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.total_kols}</td>

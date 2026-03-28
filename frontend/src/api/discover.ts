@@ -3,6 +3,7 @@ import client from './client'
 export interface DashboardStats {
   yt_snapshot_count: number
   ig_snapshot_count: number
+  threads_snapshot_count: number
   running_tasks: number
   completed_today: number
   tasks: TaskItem[]

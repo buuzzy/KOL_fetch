@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { getComposeData, sendEmails } from '../api/contacts'
 
 export default function ComposePage() {
@@ -15,14 +16,21 @@ export default function ComposePage() {
   const [result, setResult] = useState<{ success_count: number; fail_count: number; total: number } | null>(null)
 
   useEffect(() => {
-    if (preselectedIds.length > 0) {
-      setSelectedIds(new Set(preselectedIds))
+    if (data && preselectedIds.length > 0) {
+      const validIds = new Set(data.contacts.map((c) => c.id))
+      const filtered = preselectedIds.filter((id) => validIds.has(id))
+      setSelectedIds(new Set(filtered))
+      const skipped = preselectedIds.length - filtered.length
+      if (skipped > 0) {
+        toast(`已跳过 ${skipped} 位无邮箱的联系人`, { icon: '📭' })
+      }
     }
-  }, [])
+  }, [data])
 
   const sendMutation = useMutation({
     mutationFn: () => sendEmails(templateId, Array.from(selectedIds), fromName),
     onSuccess: (data) => setResult(data),
+    onError: () => toast.error('发送请求失败，请检查网络连接'),
   })
 
   const toggleContact = (id: string) => {
@@ -48,24 +56,48 @@ export default function ComposePage() {
         <h2 className="text-2xl font-bold text-gray-900">撰写邮件</h2>
       </div>
 
-      {result ? (
+      {result ? (() => {
+        const allSuccess = result.fail_count === 0
+        const allFailed = result.success_count === 0
+        const icon = allFailed
+          ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          : allSuccess
+            ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        const iconBg = allFailed ? 'bg-red-50' : allSuccess ? 'bg-green-50' : 'bg-yellow-50'
+        const iconColor = allFailed ? 'text-red-500' : allSuccess ? 'text-green-500' : 'text-yellow-500'
+        const title = allFailed ? '发送失败' : allSuccess ? '全部发送成功' : '部分发送成功'
+        return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-lg">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <div className={`w-16 h-16 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-4`}>
+              <svg className={`w-8 h-8 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {icon}
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">发送完成</h3>
-            <p className="text-sm text-gray-600">
-              成功 {result.success_count} 封 / 失败 {result.fail_count} 封 / 共 {result.total} 封
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+            <div className="flex items-center justify-center gap-4 text-sm">
+              {result.success_count > 0 && (
+                <span className="text-green-600">成功 {result.success_count} 封</span>
+              )}
+              {result.fail_count > 0 && (
+                <span className="text-red-600">失败 {result.fail_count} 封</span>
+              )}
+              <span className="text-gray-400">共 {result.total} 封</span>
+            </div>
+            {result.fail_count > 0 && !allFailed && (
+              <p className="text-xs text-gray-500 mt-3">失败的邮件可能是由于邮箱地址无效或发送限额已满</p>
+            )}
+            {allFailed && (
+              <p className="text-xs text-red-500 mt-3">请检查邮件模板和 Resend API 配置是否正常</p>
+            )}
             <Link to="/contacts" className="inline-block mt-4 text-sm text-blue-600 hover:text-blue-800">
               返回联系人列表
             </Link>
           </div>
         </div>
-      ) : (
+        )
+      })() : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             {/* Template selection */}

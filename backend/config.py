@@ -97,7 +97,7 @@ THREADS_SEARCH_KEYWORDS = [
 ]
 
 THREADS_MIN_FOLLOWERS = 500
-THREADS_MAX_FOLLOWERS = 500_000
+THREADS_MAX_FOLLOWERS = 200_000
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")

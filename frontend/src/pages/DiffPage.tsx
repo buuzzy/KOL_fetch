@@ -4,15 +4,16 @@ import { listSnapshots, diffSnapshots, type DiffResult } from '../api/snapshots'
 import { downloadReport } from '../api/reports'
 
 export default function DiffPage() {
-  const [platform, setPlatform] = useState<'youtube' | 'instagram'>('youtube')
+  const [platform, setPlatform] = useState<'youtube' | 'instagram' | 'threads'>('youtube')
   const [oldId, setOldId] = useState('')
   const [newId, setNewId] = useState('')
   const [result, setResult] = useState<DiffResult | null>(null)
 
   const { data: ytSnapshots } = useQuery({ queryKey: ['snapshots', 'youtube'], queryFn: () => listSnapshots('youtube') })
   const { data: igSnapshots } = useQuery({ queryKey: ['snapshots', 'instagram'], queryFn: () => listSnapshots('instagram') })
+  const { data: thSnapshots } = useQuery({ queryKey: ['snapshots', 'threads'], queryFn: () => listSnapshots('threads') })
 
-  const snapshots = platform === 'youtube' ? ytSnapshots : igSnapshots
+  const snapshots = platform === 'youtube' ? ytSnapshots : platform === 'threads' ? thSnapshots : igSnapshots
 
   const mutation = useMutation({
     mutationFn: () => diffSnapshots(platform, oldId, newId),
@@ -25,7 +26,7 @@ export default function DiffPage() {
   }
 
   const reportFile = result?.report_path?.split('/').pop()
-  const isYT = platform === 'youtube'
+  const countLabel = platform === 'youtube' ? '订阅数' : '粉丝数'
 
   return (
     <>
@@ -36,12 +37,12 @@ export default function DiffPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6 max-w-2xl">
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
-          {(['youtube', 'instagram'] as const).map((p) => (
+          {(['youtube', 'instagram', 'threads'] as const).map((p) => (
             <button key={p} onClick={() => { setPlatform(p); setOldId(''); setNewId(''); setResult(null) }}
               className={`px-5 py-2 rounded-md text-sm font-medium transition ${
                 platform === p ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}>
-              {p === 'youtube' ? 'YouTube' : 'Instagram'}
+              {p === 'youtube' ? 'YouTube' : p === 'threads' ? 'Threads' : 'Instagram'}
             </button>
           ))}
         </div>
@@ -111,7 +112,7 @@ export default function DiffPage() {
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                       <th className="px-6 py-3 text-left">名称</th>
-                      <th className="px-6 py-3 text-right">{isYT ? '订阅数' : '粉丝数'}</th>
+                      <th className="px-6 py-3 text-right">{countLabel}</th>
                       <th className="px-6 py-3 text-left">链接</th>
                     </tr>
                   </thead>
@@ -119,7 +120,7 @@ export default function DiffPage() {
                     {result.new_kols.map((kol, i) => (
                       <tr key={i} className="hover:bg-gray-50">
                         <td className="px-6 py-3 text-sm font-medium text-gray-900">{kol.name as string}</td>
-                        <td className="px-6 py-3 text-sm text-right">{((isYT ? kol.subscriber_count : kol.follower_count) as number)?.toLocaleString()}</td>
+                        <td className="px-6 py-3 text-sm text-right">{((platform === 'youtube' ? kol.subscriber_count : kol.follower_count) as number)?.toLocaleString()}</td>
                         <td className="px-6 py-3">
                           <a href={kol.profile_url as string} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800">访问</a>
                         </td>
@@ -141,7 +142,7 @@ export default function DiffPage() {
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                       <th className="px-6 py-3 text-left">名称</th>
-                      <th className="px-6 py-3 text-right">原{isYT ? '订阅' : '粉丝'}数</th>
+                      <th className="px-6 py-3 text-right">原{countLabel}</th>
                       <th className="px-6 py-3 text-right">增长</th>
                     </tr>
                   </thead>

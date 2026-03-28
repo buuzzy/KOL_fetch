@@ -18,6 +18,15 @@ const CHANNEL_LABELS: Record<string, { icon: string; color: string }> = {
 function ChannelBadges({ channels }: { channels: Record<string, string[] | boolean> | undefined }) {
   if (!channels || Object.keys(channels).length === 0) return <span className="text-xs text-gray-300">-</span>
 
+  const handleCopy = (val: string[] | boolean) => {
+    const text = Array.isArray(val) ? val.join(', ') : ''
+    if (!text) return
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(`已复制: ${text}`),
+      () => toast.error('复制失败'),
+    )
+  }
+
   return (
     <div className="flex flex-wrap gap-1">
       {Object.entries(channels).map(([key, val]) => {
@@ -28,11 +37,13 @@ function ChannelBadges({ channels }: { channels: Record<string, string[] | boole
         } else if (Array.isArray(val) && val.length > 0) {
           label = val.length === 1 ? val[0] : `${val[0]} +${val.length - 1}`
         }
+        const copyable = Array.isArray(val) && val.length > 0
         return (
-          <span key={key} title={Array.isArray(val) ? val.join('\n') : key}
-            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs ${cfg.color}`}>
+          <span key={key} title={`${Array.isArray(val) ? val.join('\n') : key}\n点击复制`}
+            onClick={() => copyable && handleCopy(val)}
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs ${cfg.color} ${copyable ? 'cursor-pointer hover:ring-1 hover:ring-gray-300' : ''}`}>
             <span>{cfg.icon}</span>
-            <span className="max-w-[120px] truncate">{label}</span>
+            <span className="max-w-[180px] truncate">{label}</span>
           </span>
         )
       })}
