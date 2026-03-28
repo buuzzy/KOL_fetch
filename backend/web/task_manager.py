@@ -168,7 +168,7 @@ class TaskManager:
 
             kols_data = [k.to_dict() for k in kols]
             snapshot_id = self._save_snapshot_to_db(
-                kols_data, "youtube", params, user_id,
+                kols_data, "youtube", params, user_id, state.logs,
             )
 
             state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
@@ -307,7 +307,7 @@ class TaskManager:
 
             kols_data = [k.to_dict() for k in kols]
             snapshot_id = self._save_snapshot_to_db(
-                kols_data, "instagram", params, user_id,
+                kols_data, "instagram", params, user_id, state.logs,
             )
 
             state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
@@ -452,7 +452,7 @@ class TaskManager:
 
             kols_data = [k.to_dict() for k in kols]
             snapshot_id = self._save_snapshot_to_db(
-                kols_data, "threads", params, user_id,
+                kols_data, "threads", params, user_id, state.logs,
             )
 
             state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
@@ -529,11 +529,15 @@ class TaskManager:
 
     @staticmethod
     def _save_snapshot_to_db(kols_data: list[dict], platform: str,
-                             params: dict, user_id: str) -> str | None:
+                             params: dict, user_id: str,
+                             logs: list[str] | None = None) -> str | None:
         try:
             from storage import save_snapshot_db
             return save_snapshot_db(kols_data, platform, params, user_id)
-        except Exception:
+        except Exception as e:
+            msg = f"⚠️ 快照写入 Supabase 失败: {e}"
+            if logs is not None:
+                logs.append(msg)
             return None
 
     # ── Supabase DB 持久化 ──

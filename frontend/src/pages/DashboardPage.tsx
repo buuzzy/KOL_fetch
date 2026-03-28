@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardStats } from '../api/discover'
 
@@ -10,7 +10,13 @@ const STATUS_MAP: Record<string, { dot: string; text: string; label: string }> =
 }
 
 export default function DashboardPage() {
+  const [searchParams] = useSearchParams()
+  const platformParam = searchParams.get('platform')
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboardStats })
+
+  if (platformParam && ['youtube', 'instagram', 'threads'].includes(platformParam)) {
+    return <Navigate to={`/discover?platform=${platformParam}`} replace />
+  }
 
   if (isLoading || !data) {
     return <div className="text-gray-400 text-center py-20">加载中...</div>

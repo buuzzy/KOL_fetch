@@ -35,6 +35,7 @@ export default function TaskProgressPage() {
   const [snapshotId, setSnapshotId] = useState('')
   const [reportPaths, setReportPaths] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  const [sseDisconnected, setSseDisconnected] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -81,7 +82,10 @@ export default function TaskProgressPage() {
           } catch { /* ignore parse errors */ }
         }
 
-        es.onerror = () => { es.close() }
+        es.onerror = () => {
+          es.close()
+          setSseDisconnected(true)
+        }
 
         return () => es.close()
       })
@@ -194,6 +198,20 @@ export default function TaskProgressPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
           <h4 className="font-semibold text-red-800 mb-2">任务失败</h4>
           <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {sseDisconnected && status === 'running' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center text-sm text-yellow-700">
+            <svg className="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            实时日志连接已断开，任务可能仍在后台运行
+          </div>
+          <button onClick={() => window.location.reload()} className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded-lg transition">
+            刷新页面
+          </button>
         </div>
       )}
 

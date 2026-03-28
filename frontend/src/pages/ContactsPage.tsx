@@ -58,6 +58,25 @@ const STATUS_OPTIONS = [
   { value: 'cooperating', label: '合作中', color: 'bg-purple-100 text-purple-700' },
 ]
 
+type SortKey = 'name' | 'follower_count' | 'contact_status'
+type SortDir = 'asc' | 'desc'
+
+const STATUS_ORDER = ['pending', 'contacted', 'replied', 'cooperating']
+
+function sortContacts(contacts: Contact[], key: SortKey, dir: SortDir): Contact[] {
+  return [...contacts].sort((a, b) => {
+    let cmp = 0
+    if (key === 'name') {
+      cmp = (a.name || '').localeCompare(b.name || '')
+    } else if (key === 'follower_count') {
+      cmp = (a.follower_count || 0) - (b.follower_count || 0)
+    } else if (key === 'contact_status') {
+      cmp = STATUS_ORDER.indexOf(a.contact_status || 'pending') - STATUS_ORDER.indexOf(b.contact_status || 'pending')
+    }
+    return dir === 'asc' ? cmp : -cmp
+  })
+}
+
 export default function ContactsPage() {
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['contacts'], queryFn: listContacts })
@@ -66,6 +85,8 @@ export default function ContactsPage() {
   const [editingEmail, setEditingEmail] = useState<{ id: string; email: string } | null>(null)
   const [deletingSingle, setDeletingSingle] = useState<{ id: string; name: string } | null>(null)
   const [deletingBatch, setDeletingBatch] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const importMutation = useMutation({
     mutationFn: (sid: string) => importFromSnapshot(sid),
@@ -128,9 +149,19 @@ export default function ContactsPage() {
     }
   }
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'follower_count' ? 'desc' : 'asc')
+    }
+  }
+
   if (isLoading || !data) return <div className="text-gray-400 text-center py-20">加载中...</div>
 
-  const { contacts, snapshots, total, with_email, with_contact } = data
+  const { contacts: rawContacts, snapshots, total, with_email, with_contact } = data
+  const contacts = sortContacts(rawContacts, sortKey, sortDir)
 
   return (
     <>
@@ -201,11 +232,17 @@ export default function ContactsPage() {
                   <input type="checkbox" checked={selectedIds.size === contacts.length && contacts.length > 0}
                     onChange={() => toggleAll(contacts)} className="rounded" />
                 </th>
-                <th className="px-4 py-3 text-left">博主</th>
-                <th className="px-4 py-3 text-right">粉丝</th>
+                <th className="px-4 py-3 text-left cursor-pointer hover:text-gray-700 select-none" onClick={() => toggleSort('name')}>
+                  博主 {sortKey === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="px-4 py-3 text-right cursor-pointer hover:text-gray-700 select-none" onClick={() => toggleSort('follower_count')}>
+                  粉丝 {sortKey === 'follower_count' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="px-4 py-3 text-left">邮箱</th>
                 <th className="px-4 py-3 text-left">联系渠道</th>
-                <th className="px-4 py-3 text-left">状态</th>
+                <th className="px-4 py-3 text-left cursor-pointer hover:text-gray-700 select-none" onClick={() => toggleSort('contact_status')}>
+                  状态 {sortKey === 'contact_status' && (sortDir === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="px-4 py-3 text-left">操作</th>
               </tr>
             </thead>
