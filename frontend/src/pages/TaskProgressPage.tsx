@@ -145,12 +145,33 @@ export default function TaskProgressPage() {
       </div>
 
       {status === 'completed' && summary && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
-          <h4 className="font-semibold text-green-800 mb-2">搜索完成</h4>
-          <p className="text-sm text-green-700">
-            共发现 {String(summary.total || 0)} 个 KOL
-            {summary.quota_used != null && `，Quota 已用 ${summary.quota_used}`}
-          </p>
+        <div className="space-y-4 mb-6">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+            <h4 className="font-semibold text-green-800 mb-2">搜索完成</h4>
+            <div className="text-sm text-green-700 space-y-1">
+              <p>
+                共发现 {String(summary.total || 0)} 个 KOL
+                {summary.rule_passed != null && ` (规则筛选 ${summary.rule_passed} → AI 精筛 ${summary.llm_passed ?? summary.total})`}
+                {summary.quota_used != null && `，Quota 已用 ${summary.quota_used}`}
+                {summary.api_calls != null && `，API 调用 ${summary.api_calls} 次`}
+                {summary.cost != null && `，费用 $${summary.cost}`}
+              </p>
+              {summary.llm_rejected != null && summary.llm_rejected > 0 && (
+                <p className="text-green-600">AI 淘汰 {summary.llm_rejected} 个不符合条件的候选人</p>
+              )}
+            </div>
+          </div>
+          {summary.llm_summary && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+              <div className="flex items-center mb-2">
+                <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <h4 className="font-semibold text-blue-800 text-sm">AI 分析摘要</h4>
+              </div>
+              <p className="text-sm text-blue-700">{String(summary.llm_summary)}</p>
+            </div>
+          )}
         </div>
       )}
 

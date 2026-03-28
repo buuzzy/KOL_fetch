@@ -58,6 +58,72 @@ async def discover_keywords(_user=Depends(require_auth)):
     }
 
 
+@router.get("/api/discover/ig-keywords")
+async def discover_ig_keywords(_user=Depends(require_auth)):
+    from config import IG_SEARCH_KEYWORDS
+    return {"keywords": IG_SEARCH_KEYWORDS}
+
+
+@router.get("/api/discover/llm-options")
+async def llm_options(_user=Depends(require_auth)):
+    from llm_filter import KOL_TYPE_OPTIONS, EXCLUDE_TYPE_OPTIONS, AUDIENCE_OPTIONS
+    return {
+        "kol_types": KOL_TYPE_OPTIONS,
+        "exclude_types": EXCLUDE_TYPE_OPTIONS,
+        "audiences": AUDIENCE_OPTIONS,
+    }
+
+
+# ── 接口预检 ──
+
+@router.get("/api/discover/health-check")
+async def health_check(_user=Depends(require_auth)):
+    """一键测试 YouTube / TikHub / LLM 接口是否可用。"""
+    import requests as http
+    results: dict[str, dict] = {}
+
+    from config import YOUTUBE_API_KEYS, TIKHUB_API_KEY, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+
+    if YOUTUBE_API_KEYS:
+        try:
+            r = http.get(
+                "https://www.googleapis.com/youtube/v3/search",
+                params={"part": "snippet", "q": "test", "maxResults": 1, "key": YOUTUBE_API_KEYS[0]},
+                timeout=8,
+            )
+            results["youtube"] = {"ok": r.status_code == 200, "status": r.status_code,
+                                  "keys": len(YOUTUBE_API_KEYS)}
+        except Exception as e:
+            results["youtube"] = {"ok": False, "error": str(e)}
+    else:
+        results["youtube"] = {"ok": False, "error": "YOUTUBE_API_KEY 未配置"}
+
+    if TIKHUB_API_KEY:
+        try:
+            r = http.get(
+                "https://api.tikhub.io/api/v1/demo/instagram/web/fetch_user_info",
+                params={"username": "instagram"},
+                headers={"Authorization": f"Bearer {TIKHUB_API_KEY}"},
+                timeout=10,
+            )
+            results["tikhub"] = {"ok": r.status_code == 200, "status": r.status_code}
+        except Exception as e:
+            results["tikhub"] = {"ok": False, "error": str(e)}
+    else:
+        results["tikhub"] = {"ok": False, "error": "TIKHUB_API_KEY 未配置"}
+
+    if LLM_API_KEY and LLM_BASE_URL:
+        try:
+            r = http.get(f"{LLM_BASE_URL}/models", headers={"Authorization": f"Bearer {LLM_API_KEY}"}, timeout=8)
+            results["llm"] = {"ok": r.status_code == 200, "status": r.status_code, "model": LLM_MODEL}
+        except Exception as e:
+            results["llm"] = {"ok": False, "error": str(e)}
+    else:
+        results["llm"] = {"ok": False, "error": "LLM_API_KEY 或 LLM_BASE_URL 未配置"}
+
+    return results
+
+
 # ── 提交任务 ──
 
 DEPTH_PRESETS = {
@@ -67,6 +133,13 @@ DEPTH_PRESETS = {
 }
 
 
+class LLMCriteria(BaseModel):
+    kol_types: list[str] = []
+    exclude_types: list[str] = ["media", "institution", "insurance", "realestate"]
+    audience: str = "hk_macau"
+    custom_requirements: str = ""
+
+
 class YouTubeDiscoverRequest(BaseModel):
     selected_keywords: str = ""
     custom_keywords: str = ""
@@ -74,6 +147,7 @@ class YouTubeDiscoverRequest(BaseModel):
     max_subscribers: int = 200000
     depth: str = "standard"
     max_inactive_days: int = 90
+    llm_criteria: LLMCriteria | None = LLMCriteria()
 
 
 @router.post("/api/discover/youtube")
@@ -88,6 +162,7 @@ async def submit_youtube(body: YouTubeDiscoverRequest, user=Depends(require_auth
         "pages": preset["pages"],
         "depth": body.depth,
         "max_inactive_days": body.max_inactive_days,
+        "llm_criteria": body.llm_criteria.model_dump() if body.llm_criteria else None,
     }
     task_id = task_manager.submit_youtube(params, user.id)
     return {"task_id": task_id}
@@ -98,6 +173,7 @@ class InstagramDiscoverRequest(BaseModel):
     custom_keywords: str = ""
     min_followers: int = 1000
     max_followers: int = 200000
+    llm_criteria: LLMCriteria | None = LLMCriteria()
 
 
 @router.post("/api/discover/instagram")
@@ -107,6 +183,7 @@ async def submit_instagram(body: InstagramDiscoverRequest, user=Depends(require_
         "custom_keywords": body.custom_keywords,
         "min_followers": body.min_followers,
         "max_followers": body.max_followers,
+        "llm_criteria": body.llm_criteria.model_dump() if body.llm_criteria else None,
     }
     task_id = task_manager.submit_instagram(params, user.id)
     return {"task_id": task_id}

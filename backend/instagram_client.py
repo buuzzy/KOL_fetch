@@ -1,7 +1,14 @@
-"""TikHub Instagram API 客户端封装。"""
+"""Instagram 数据客户端 — 通过 TikHub API 获取 IG 用户数据。
+
+TikHub 负责代理池、TLS 伪装、签名逆向等反风控工作，
+我们只需携带 API Key 调用 REST 接口。
+
+定价: 搜索 $0.002/req, 用户详情 $0.002/req
+限流: 默认 10 RPS (TikHub 网关层)
+"""
 
 import logging
-import time
+from typing import Optional
 
 import requests
 
@@ -9,20 +16,24 @@ from config import TIKHUB_API_KEY
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://api.tikhub.io/api/v1/instagram/v2"
-REQUEST_TIMEOUT = (5, 15)  # (connect_timeout, read_timeout)
-MAX_RETRIES = 2
-COST_PER_REQUEST = 0.002
+_TIKHUB_BASE = "https://api.tikhub.io/api/v1/instagram"
+_CONNECT_TIMEOUT = 10
+_READ_TIMEOUT = 20
+_MAX_RETRIES = 2
 
 
 class InstagramClient:
     def __init__(self, api_key: str = TIKHUB_API_KEY):
         if not api_key:
-            raise ValueError("TIKHUB_API_KEY 未设置。请在 .env 文件中配置")
+            raise ValueError(
+                "TIKHUB_API_KEY 未设置。请在 .env 中添加 TIKHUB_API_KEY=<你的 TikHub API Key>"
+            )
         self._session = requests.Session()
-        self._session.headers.update({"Authorization": f"Bearer {api_key}"})
+        self._session.headers.update({
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        })
         self._request_count = 0
-        self._cache_hits = 0
         self._failed_count = 0
 
     @property
@@ -31,71 +42,124 @@ class InstagramClient:
 
     @property
     def estimated_cost(self) -> float:
-        return self._request_count * COST_PER_REQUEST
+        return self._request_count * 0.002
 
     @property
     def stats_summary(self) -> str:
         return (
-            f"请求={self._request_count}, 缓存命中={self._cache_hits}, "
-            f"失败={self._failed_count}, 费用=${self.estimated_cost:.3f}"
+            f"请求={self._request_count}, "
+            f"失败={self._failed_count}, "
+            f"费用=${self.estimated_cost:.3f}"
         )
-
-    def _get(self, endpoint: str, params: dict, label: str = "") -> dict:
-        url = f"{BASE_URL}/{endpoint}"
-        tag = label or endpoint
-
-        for attempt in range(1, MAX_RETRIES + 1):
-            t0 = time.time()
-            try:
-                resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
-                elapsed = time.time() - t0
-            except requests.exceptions.Timeout:
-                elapsed = time.time() - t0
-                logger.warning(f"[IG-API] {tag} 超时 ({elapsed:.1f}s), 重试 {attempt}/{MAX_RETRIES}")
-                if attempt == MAX_RETRIES:
-                    self._failed_count += 1
-                    raise
-                continue
-            except requests.exceptions.ConnectionError as e:
-                elapsed = time.time() - t0
-                logger.warning(f"[IG-API] {tag} 连接失败 ({elapsed:.1f}s): {e}")
-                if attempt == MAX_RETRIES:
-                    self._failed_count += 1
-                    raise
-                time.sleep(2)
-                continue
-            break
-
-        self._request_count += 1
-
-        if resp.status_code == 402:
-            raise RuntimeError("TikHub 余额不足，请充值")
-        if resp.status_code == 403:
-            raise PermissionError("TikHub API Token 缺少 Instagram 权限")
-        if resp.status_code != 200:
-            self._failed_count += 1
-            logger.warning(f"[IG-API] {tag} HTTP {resp.status_code} ({elapsed:.1f}s)")
-            resp.raise_for_status()
-
-        body = resp.json()
-        is_cached = "cache_url" in body and body.get("cache_url")
-        if is_cached:
-            self._cache_hits += 1
-
-        logger.debug(
-            f"[IG-API] {tag} OK ({elapsed:.1f}s)"
-            f"{' [cached]' if is_cached else ''}"
-        )
-        return body
 
     def search_users(self, keyword: str) -> list[dict]:
-        """搜索用户。$0.002/次。"""
-        data = self._get("search_users", {"keyword": keyword}, label=f"search({keyword})")
-        items = data.get("data", {}).get("data", {}).get("items", [])
-        logger.info(f"[IG-API] search_users('{keyword}') → {len(items)} 个用户")
-        return items
+        """按关键词搜索 IG 用户。"""
+        data = self._get(
+            f"{_TIKHUB_BASE}/v2/search_users",
+            params={"keyword": keyword},
+            label=f"search({keyword})",
+        )
+        if data is None:
+            return []
 
-    def get_user_info(self, username: str) -> dict | None:
-        """获取用户详情。$0.002/次。"""
-        data = self._get("fetch_user_info", {"username": username}, label=f"user(@{username})")
-        return data.get("data", {}).get("data", {})
+        items = data.get("data", {}).get("items", [])
+        if not items:
+            items = data.get("items", [])
+
+        result = [
+            {
+                "username": u.get("username", ""),
+                "full_name": u.get("full_name", ""),
+                "user_id": str(u.get("pk", u.get("pk_id", ""))),
+                "is_private": u.get("is_private", False),
+                "is_verified": u.get("is_verified", False),
+            }
+            for u in items
+            if u.get("username")
+        ]
+        logger.info(f"[TikHub-IG] search('{keyword}') → {len(result)} 个用户")
+        return result
+
+    def get_user_info(self, username: str, user_id: str = "") -> Optional[dict]:
+        """获取用户详情。"""
+        data = self._get(
+            f"{_TIKHUB_BASE}/v2/fetch_user_info",
+            params={"username": username},
+            label=f"user(@{username})",
+        )
+        if data is None:
+            return None
+
+        info = data.get("data", data)
+        if not info or not info.get("username"):
+            return None
+
+        bio_links = info.get("bio_links", [])
+        if isinstance(bio_links, list):
+            bio_links = [{"url": bl.get("url", "")} for bl in bio_links if bl.get("url")]
+
+        return {
+            "username": info.get("username", username),
+            "full_name": info.get("full_name", ""),
+            "biography": info.get("biography", ""),
+            "follower_count": info.get("follower_count", 0),
+            "following_count": info.get("following_count", 0),
+            "media_count": info.get("media_count", 0),
+            "is_private": info.get("is_private", False),
+            "is_verified": info.get("is_verified", False),
+            "external_url": info.get("external_url", ""),
+            "bio_links": bio_links,
+            "category_name": info.get("category_name", info.get("category", "")),
+            "category": info.get("category", ""),
+            "profile_pic_url": info.get("profile_pic_url", ""),
+            "public_email": info.get("public_email", "") or "",
+            "public_phone_number": info.get("public_phone_number", "") or "",
+            "contact_phone_number": info.get("contact_phone_number", "") or "",
+            "is_business": info.get("is_business", False),
+            "business_contact_method": info.get("business_contact_method", ""),
+            "is_whatsapp_linked": info.get("is_whatsapp_linked", False),
+        }
+
+    def _get(self, url: str, params: dict, label: str) -> Optional[dict]:
+        """带重试的 GET 请求。"""
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                resp = self._session.get(
+                    url, params=params,
+                    timeout=(_CONNECT_TIMEOUT, _READ_TIMEOUT),
+                )
+                self._request_count += 1
+
+                if resp.status_code == 200:
+                    return resp.json().get("data", resp.json())
+
+                if resp.status_code == 429:
+                    logger.warning(f"[TikHub-IG] {label} 429 限流, 重试 {attempt}/{_MAX_RETRIES}")
+                    if attempt < _MAX_RETRIES:
+                        import time, random
+                        time.sleep(2 + random.uniform(0, 2))
+                        continue
+                    self._failed_count += 1
+                    return None
+
+                if resp.status_code == 402:
+                    logger.error(f"[TikHub-IG] {label} 402 — 余额不足, 请充值 TikHub 账户")
+                    self._failed_count += 1
+                    return None
+
+                logger.warning(f"[TikHub-IG] {label} HTTP {resp.status_code}")
+                self._failed_count += 1
+                if attempt < _MAX_RETRIES:
+                    continue
+                return None
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logger.warning(f"[TikHub-IG] {label} 网络异常: {e}")
+                self._failed_count += 1
+                if attempt < _MAX_RETRIES:
+                    import time
+                    time.sleep(3)
+                    continue
+                return None
+
+        return None

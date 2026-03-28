@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -31,6 +32,8 @@ export default function App() {
   }
 
   return (
+    <>
+    <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px' } }} />
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
       <Route element={<ProtectedRoute />}>
@@ -48,5 +51,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} />} />
     </Routes>
+    </>
   )
 }

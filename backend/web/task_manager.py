@@ -40,8 +40,8 @@ class _TaskLogHandler(logging.Handler):
 
 
 class TaskManager:
-    _YOUTUBE_LOGGERS = ["discovery", "youtube_client"]
-    _IG_LOGGERS = ["instagram_discovery", "instagram_client"]
+    _YOUTUBE_LOGGERS = ["discovery", "youtube_client", "llm_filter"]
+    _IG_LOGGERS = ["instagram_discovery", "instagram_client", "llm_filter"]
 
     def __init__(self, max_workers: int = 2):
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -109,6 +109,8 @@ class TaskManager:
                 f"订阅范围: {min_subs:,} ~ {max_subs:,} | 活跃度: {inactive_label}"
             )
 
+            from llm_filter import llm_filter_candidates, generate_summary
+
             client = YouTubeClient()
             state.logs.append(f"已加载 {len(client._api_keys)} 个 API Key")
             try:
@@ -129,6 +131,32 @@ class TaskManager:
                 self._update_db_finish(state.task_id, "completed", state.result_summary)
                 return
 
+            rule_passed_count = len(kols)
+            state.logs.append(f"规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
+
+            llm_criteria = params.get("llm_criteria")
+            filter_result = llm_filter_candidates(kols, "youtube", criteria=llm_criteria)
+            kols = [entry["_original"] for entry in filter_result.passed]
+
+            summary_text = generate_summary(
+                filter_result, "YouTube", keywords,
+                min_subs, max_subs, rule_passed_count,
+                criteria=llm_criteria,
+            )
+            filter_result.summary = summary_text
+            state.logs.append(f"AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+
+            if not kols:
+                state.logs.append("AI 精筛后无符合条件的 KOL")
+                state.status = "completed"
+                state.result_summary = {
+                    "total": 0, "quota_used": client.quota_used,
+                    "rule_passed": rule_passed_count,
+                    "llm_summary": summary_text,
+                }
+                self._update_db_finish(state.task_id, "completed", state.result_summary)
+                return
+
             csv_path = export_csv(kols)
             xlsx_path = export_excel(kols)
 
@@ -141,11 +169,19 @@ class TaskManager:
             state.result_summary = {
                 "total": len(kols),
                 "quota_used": client.quota_used,
+                "rule_passed": rule_passed_count,
+                "llm_passed": len(kols),
+                "llm_rejected": len(filter_result.rejected),
+                "llm_summary": summary_text,
                 "snapshot_id": snapshot_id,
                 "top3": [{"name": k.name, "subscribers": k.subscriber_count} for k in kols[:3]],
             }
             state.status = "completed"
-            state.logs.append(f"完成! 发现 {len(kols)} 个 KOL, Quota 已用 {client.quota_used}")
+            state.logs.append(
+                f"完成! 发现 {len(kols)} 个 KOL "
+                f"(规则 {rule_passed_count} → AI {len(kols)}), "
+                f"Quota 已用 {client.quota_used}"
+            )
             self._update_db_finish(state.task_id, "completed", state.result_summary)
 
         except Exception as e:
@@ -183,10 +219,6 @@ class TaskManager:
         self._update_db_status(state.task_id, "running")
 
         try:
-            from config import TIKHUB_API_KEY
-            if not TIKHUB_API_KEY:
-                raise ValueError("Instagram 搜索暂不可用：TIKHUB_API_KEY 未配置，请联系管理员")
-
             from instagram_client import InstagramClient
             from instagram_discovery import discover_ig_kols
             from report import export_ig_csv, export_ig_excel
@@ -205,6 +237,8 @@ class TaskManager:
                 from config import IG_SEARCH_KEYWORDS
                 keywords = IG_SEARCH_KEYWORDS
 
+            from llm_filter import llm_filter_candidates, generate_summary
+
             state.logs.append(f"[IG] 关键词: {len(keywords)} 个 | 粉丝范围: {min_followers:,} ~ {max_followers:,}")
 
             client = InstagramClient()
@@ -217,6 +251,33 @@ class TaskManager:
                 state.logs.append("[IG] 未找到符合条件的 KOL")
                 state.status = "completed"
                 state.result_summary = {"total": 0, "api_calls": client.request_count, "cost": client.estimated_cost}
+                self._update_db_finish(state.task_id, "completed", state.result_summary)
+                return
+
+            rule_passed_count = len(kols)
+            state.logs.append(f"[IG] 规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
+
+            llm_criteria = params.get("llm_criteria")
+            filter_result = llm_filter_candidates(kols, "instagram", criteria=llm_criteria)
+            kols = [entry["_original"] for entry in filter_result.passed]
+
+            summary_text = generate_summary(
+                filter_result, "Instagram", keywords,
+                min_followers, max_followers, rule_passed_count,
+                criteria=llm_criteria,
+            )
+            filter_result.summary = summary_text
+            state.logs.append(f"[IG] AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+
+            if not kols:
+                state.logs.append("[IG] AI 精筛后无符合条件的 KOL")
+                state.status = "completed"
+                state.result_summary = {
+                    "total": 0, "api_calls": client.request_count,
+                    "cost": round(client.estimated_cost, 3),
+                    "rule_passed": rule_passed_count,
+                    "llm_summary": summary_text,
+                }
                 self._update_db_finish(state.task_id, "completed", state.result_summary)
                 return
 
@@ -233,11 +294,19 @@ class TaskManager:
                 "total": len(kols),
                 "api_calls": client.request_count,
                 "cost": round(client.estimated_cost, 3),
+                "rule_passed": rule_passed_count,
+                "llm_passed": len(kols),
+                "llm_rejected": len(filter_result.rejected),
+                "llm_summary": summary_text,
                 "snapshot_id": snapshot_id,
                 "top3": [{"name": k.name, "followers": k.follower_count} for k in kols[:3]],
             }
             state.status = "completed"
-            state.logs.append(f"[IG] 完成! 发现 {len(kols)} 个 KOL, 费用 ${client.estimated_cost:.3f}")
+            state.logs.append(
+                f"[IG] 完成! 发现 {len(kols)} 个 KOL "
+                f"(规则 {rule_passed_count} → AI {len(kols)}), "
+                f"费用 ${client.estimated_cost:.3f}"
+            )
             self._update_db_finish(state.task_id, "completed", state.result_summary)
 
         except Exception as e:

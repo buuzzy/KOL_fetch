@@ -26,6 +26,24 @@ export interface Keywords {
   long_tail: string[]
 }
 
+export interface LLMOption {
+  id: string
+  label: string
+}
+
+export interface LLMOptions {
+  kol_types: LLMOption[]
+  exclude_types: LLMOption[]
+  audiences: LLMOption[]
+}
+
+export interface LLMCriteria {
+  kol_types: string[]
+  exclude_types: string[]
+  audience: string
+  custom_requirements: string
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const { data } = await client.get<DashboardStats>('/api/dashboard/stats')
   return data
@@ -36,6 +54,16 @@ export async function getKeywords(): Promise<Keywords> {
   return data
 }
 
+export async function getIGKeywords(): Promise<{ keywords: string[] }> {
+  const { data } = await client.get<{ keywords: string[] }>('/api/discover/ig-keywords')
+  return data
+}
+
+export async function getLLMOptions(): Promise<LLMOptions> {
+  const { data } = await client.get<LLMOptions>('/api/discover/llm-options')
+  return data
+}
+
 export async function submitYoutube(params: {
   selected_keywords: string
   custom_keywords: string
@@ -43,6 +71,7 @@ export async function submitYoutube(params: {
   max_subscribers: number
   depth: string
   max_inactive_days: number
+  llm_criteria: LLMCriteria | null
 }): Promise<{ task_id: string }> {
   const { data } = await client.post('/api/discover/youtube', params)
   return data
@@ -53,6 +82,7 @@ export async function submitInstagram(params: {
   custom_keywords: string
   min_followers: number
   max_followers: number
+  llm_criteria: LLMCriteria | null
 }): Promise<{ task_id: string }> {
   const { data } = await client.post('/api/discover/instagram', params)
   return data
@@ -60,5 +90,16 @@ export async function submitInstagram(params: {
 
 export async function getTaskState(taskId: string): Promise<TaskItem> {
   const { data } = await client.get<TaskItem>(`/api/tasks/${taskId}`)
+  return data
+}
+
+export interface HealthCheckResult {
+  youtube: { ok: boolean; status?: number; keys?: number; error?: string }
+  tikhub: { ok: boolean; status?: number; error?: string }
+  llm: { ok: boolean; status?: number; model?: string; error?: string }
+}
+
+export async function runHealthCheck(): Promise<HealthCheckResult> {
+  const { data } = await client.get<HealthCheckResult>('/api/discover/health-check')
   return data
 }

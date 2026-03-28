@@ -34,6 +34,13 @@ class IGKOL:
     content_focus: list[str] = field(default_factory=list)
     discovered_via_keywords: list[str] = field(default_factory=list)
     hk_relevance_score: int = 0
+    llm_verdict: str = ""
+    llm_reason: str = ""
+    public_email: str = ""
+    public_phone: str = ""
+    is_business: bool = False
+    is_whatsapp_linked: bool = False
+    bio_links: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -56,7 +63,8 @@ def discover_ig_kols(
     """主发现流程。"""
 
     # ── 阶段1: 搜索候选用户 ──
-    candidates: dict[str, list[str]] = {}
+    # candidates: {username: {"keywords": [...], "user_id": "..."}}
+    candidates: dict[str, dict] = {}
     phase_start = time.time()
 
     for keyword in keywords:
@@ -72,12 +80,15 @@ def discover_ig_kols(
             if not username:
                 continue
             if username in candidates:
-                if keyword not in candidates[username]:
-                    candidates[username].append(keyword)
+                if keyword not in candidates[username]["keywords"]:
+                    candidates[username]["keywords"].append(keyword)
                 continue
             full_name = u.get("full_name", "")
             if _quick_screen(full_name, ""):
-                candidates[username] = [keyword]
+                candidates[username] = {
+                    "keywords": [keyword],
+                    "user_id": u.get("user_id", ""),
+                }
                 added += 1
 
         logger.info(f"[IG] '{keyword}' → 新增 {added} 个候选 (累计 {len(candidates)})")
@@ -102,7 +113,9 @@ def discover_ig_kols(
     total = len(candidates)
     detail_start = time.time()
 
-    for idx, (username, kw_list) in enumerate(candidates.items(), 1):
+    for idx, (username, meta) in enumerate(candidates.items(), 1):
+        kw_list = meta["keywords"]
+        user_id = meta.get("user_id", "")
         # 每 10 个打一次进度
         if idx % 10 == 0 or idx == 1 or idx == total:
             elapsed = time.time() - detail_start
@@ -115,7 +128,7 @@ def discover_ig_kols(
             )
 
         try:
-            info = client.get_user_info(username)
+            info = client.get_user_info(username, user_id=user_id)
         except Exception as e:
             logger.warning(f"[IG] @{username} 请求失败: {e}")
             excluded["请求失败"] += 1
@@ -154,12 +167,18 @@ def discover_ig_kols(
             excluded["非港澳"] += 1
             continue
 
-        bio_links = info.get("bio_links", [])
+        raw_bio_links = info.get("bio_links", [])
         ext_url = ""
-        if isinstance(bio_links, list) and bio_links:
-            ext_url = bio_links[0].get("url", "")
-        elif info.get("external_url"):
+        link_urls: list[str] = []
+        if isinstance(raw_bio_links, list):
+            link_urls = [bl.get("url", "") for bl in raw_bio_links if bl.get("url")]
+            if link_urls:
+                ext_url = link_urls[0]
+        if not ext_url and info.get("external_url"):
             ext_url = info["external_url"]
+
+        pub_email = info.get("public_email", "") or ""
+        pub_phone = info.get("contact_phone_number", "") or info.get("public_phone_number", "") or ""
 
         kol = IGKOL(
             username=username,
@@ -175,6 +194,11 @@ def discover_ig_kols(
             content_focus=_infer_content_focus(name, bio),
             discovered_via_keywords=kw_list,
             hk_relevance_score=hk_score,
+            public_email=pub_email,
+            public_phone=pub_phone,
+            is_business=info.get("is_business", False),
+            is_whatsapp_linked=info.get("is_whatsapp_linked", False),
+            bio_links=link_urls,
         )
         kols.append(kol)
         logger.info(f"[IG] ✓ @{username} ({name}, {followers:,} 粉丝, HK={hk_score})")

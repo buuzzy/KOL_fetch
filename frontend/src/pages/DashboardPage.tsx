@@ -54,22 +54,22 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 opacity-60 cursor-not-allowed relative">
-          <div className="absolute top-3 right-3">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">即将上线</span>
-          </div>
+        <Link
+          to="/discover?platform=instagram"
+          className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition group"
+        >
           <div className="flex items-center">
             <div className="w-12 h-12 bg-pink-50 rounded-lg flex items-center justify-center mr-4">
-              <svg className="w-6 h-6 text-pink-300" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069z" />
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-400">Instagram 博主发现</h3>
-              <p className="text-sm text-gray-400 mt-0.5">IG 博主搜索功能正在接入中</p>
+              <h3 className="font-semibold text-gray-900 group-hover:text-pink-600 transition">Instagram 博主发现</h3>
+              <p className="text-sm text-gray-500 mt-0.5">搜索港澳财经 IG 博主</p>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">

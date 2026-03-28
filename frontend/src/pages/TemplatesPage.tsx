@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { listTemplates, createTemplate, updateTemplate, deleteTemplate, type EmailTemplate } from '../api/contacts'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function TemplatesPage() {
   const queryClient = useQueryClient()
@@ -13,6 +15,7 @@ export default function TemplatesPage() {
   const [bodyHtml, setBodyHtml] = useState('')
 
   const [editing, setEditing] = useState<EmailTemplate | null>(null)
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null)
 
   const createMutation = useMutation({
     mutationFn: () => createTemplate(name, subject, bodyHtml),
@@ -20,7 +23,9 @@ export default function TemplatesPage() {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setShowForm(false)
       setName(''); setSubject(''); setBodyHtml('')
+      toast.success('模板已创建')
     },
+    onError: () => toast.error('创建失败'),
   })
 
   const updateMutation = useMutation({
@@ -29,12 +34,19 @@ export default function TemplatesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditing(null)
+      toast.success('模板已更新')
     },
+    onError: () => toast.error('更新失败'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteTemplate,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] })
+      toast.success('模板已删除')
+      setDeleting(null)
+    },
+    onError: () => toast.error('删除失败'),
   })
 
   if (isLoading) return <div className="text-gray-400 text-center py-20">加载中...</div>
@@ -112,9 +124,8 @@ export default function TemplatesPage() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setEditing(tpl)} className="text-sm text-blue-600 hover:text-blue-800">编辑</button>
-                  <button onClick={() => {
-                    if (confirm(`确定删除模板「${tpl.name}」？`)) deleteMutation.mutate(tpl.id)
-                  }} className="text-sm text-red-600 hover:text-red-800">删除</button>
+                  <button onClick={() => setDeleting({ id: tpl.id, name: tpl.name })}
+                    className="text-sm text-red-600 hover:text-red-800">删除</button>
                 </div>
               </div>
             )}
@@ -126,6 +137,15 @@ export default function TemplatesPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="删除模板"
+        message={`确定删除邮件模板「${deleting?.name}」？删除后不可恢复。`}
+        confirmLabel="删除"
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+        onCancel={() => setDeleting(null)}
+      />
     </>
   )
 }

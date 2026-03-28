@@ -176,18 +176,33 @@ class YouTubeClient:
             results.extend(data.get("items", []))
         return results
 
-    def get_latest_upload_date(self, uploads_playlist_id: str) -> str | None:
-        """取频道最新一条视频的发布时间。消耗 1 quota unit。返回 ISO 日期字符串或 None。"""
+    def get_recent_uploads(
+        self, uploads_playlist_id: str, max_results: int = 3,
+    ) -> list[dict]:
+        """取频道最近 N 条视频的标题和发布时间。消耗 1 quota unit。
+        返回 [{"title": "...", "published_at": "..."}, ...]
+        """
         self._consume_quota("channels.list")
         data = self._get("playlistItems", {
             "part": "snippet",
             "playlistId": uploads_playlist_id,
-            "maxResults": 1,
+            "maxResults": max_results,
         })
-        items = data.get("items", [])
-        if not items:
+        results = []
+        for item in data.get("items", []):
+            snippet = item.get("snippet", {})
+            results.append({
+                "title": snippet.get("title", ""),
+                "published_at": snippet.get("publishedAt", ""),
+            })
+        return results
+
+    def get_latest_upload_date(self, uploads_playlist_id: str) -> str | None:
+        """取频道最新一条视频的发布时间。消耗 1 quota unit。返回 ISO 日期字符串或 None。"""
+        uploads = self.get_recent_uploads(uploads_playlist_id, max_results=1)
+        if not uploads:
             return None
-        return items[0].get("snippet", {}).get("publishedAt")
+        return uploads[0].get("published_at")
 
     def get_video_details(self, video_ids: list[str]) -> list[dict]:
         """批量获取视频详情。每次调用消耗 1 quota unit，最多 50 个视频/次。"""

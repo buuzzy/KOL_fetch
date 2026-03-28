@@ -1,10 +1,44 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import {
   listContacts, importFromSnapshot, deleteContact, updateContactStatus,
   batchDeleteContacts, updateEmail, type Contact,
 } from '../api/contacts'
+import ConfirmDialog from '../components/ConfirmDialog'
+
+const CHANNEL_LABELS: Record<string, { icon: string; color: string }> = {
+  email: { icon: '📧', color: 'bg-blue-50 text-blue-700' },
+  phone: { icon: '📱', color: 'bg-green-50 text-green-700' },
+  whatsapp: { icon: '💬', color: 'bg-emerald-50 text-emerald-700' },
+  link: { icon: '🔗', color: 'bg-gray-50 text-gray-600' },
+}
+
+function ChannelBadges({ channels }: { channels: Record<string, string[] | boolean> | undefined }) {
+  if (!channels || Object.keys(channels).length === 0) return <span className="text-xs text-gray-300">-</span>
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {Object.entries(channels).map(([key, val]) => {
+        const cfg = CHANNEL_LABELS[key] || { icon: '•', color: 'bg-gray-100 text-gray-500' }
+        let label = key
+        if (val === true) {
+          label = key === 'whatsapp' ? 'WhatsApp' : key
+        } else if (Array.isArray(val) && val.length > 0) {
+          label = val.length === 1 ? val[0] : `${val[0]} +${val.length - 1}`
+        }
+        return (
+          <span key={key} title={Array.isArray(val) ? val.join('\n') : key}
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs ${cfg.color}`}>
+            <span>{cfg.icon}</span>
+            <span className="max-w-[120px] truncate">{label}</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: '待联系', color: 'bg-gray-100 text-gray-700' },
@@ -19,19 +53,27 @@ export default function ContactsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [importSnapshotId, setImportSnapshotId] = useState('')
   const [editingEmail, setEditingEmail] = useState<{ id: string; email: string } | null>(null)
+  const [deletingSingle, setDeletingSingle] = useState<{ id: string; name: string } | null>(null)
+  const [deletingBatch, setDeletingBatch] = useState(false)
 
   const importMutation = useMutation({
     mutationFn: (sid: string) => importFromSnapshot(sid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
       setImportSnapshotId('')
-      alert('导入完成')
+      toast.success('导入完成')
     },
+    onError: () => toast.error('导入失败'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteContact,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      toast.success('联系人已删除')
+      setDeletingSingle(null)
+    },
+    onError: () => toast.error('删除失败'),
   })
 
   const batchDeleteMutation = useMutation({
@@ -39,7 +81,10 @@ export default function ContactsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
       setSelectedIds(new Set())
+      toast.success(`已删除 ${selectedIds.size} 个联系人`)
+      setDeletingBatch(false)
     },
+    onError: () => toast.error('批量删除失败'),
   })
 
   const statusMutation = useMutation({
@@ -52,6 +97,7 @@ export default function ContactsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
       setEditingEmail(null)
+      toast.success('邮箱已更新')
     },
   })
 
@@ -126,11 +172,8 @@ export default function ContactsPage() {
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition">
               发送邮件
             </Link>
-            <button onClick={() => {
-              if (confirm(`确定删除 ${selectedIds.size} 个联系人？`)) {
-                batchDeleteMutation.mutate(Array.from(selectedIds))
-              }
-            }} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition">
+            <button onClick={() => setDeletingBatch(true)}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition">
               批量删除
             </button>
           </div>
@@ -187,11 +230,7 @@ export default function ContactsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {Object.keys(c._channels || {}).map((ch) => (
-                          <span key={ch} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{ch}</span>
-                        ))}
-                      </div>
+                      <ChannelBadges channels={c._channels} />
                     </td>
                     <td className="px-4 py-3">
                       <select value={c.contact_status || 'pending'}
@@ -201,9 +240,8 @@ export default function ContactsPage() {
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => {
-                        if (confirm(`确定删除联系人「${c.name}」？`)) deleteMutation.mutate(c.id)
-                      }} className="text-xs text-red-600 hover:text-red-800">删除</button>
+                      <button onClick={() => setDeletingSingle({ id: c.id, name: c.name })}
+                        className="text-xs text-red-600 hover:text-red-800">删除</button>
                     </td>
                   </tr>
                 )
@@ -215,6 +253,24 @@ export default function ContactsPage() {
           <div className="p-12 text-center text-gray-400">暂无联系人，请先从快照导入</div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deletingSingle}
+        title="删除联系人"
+        message={`确定删除联系人「${deletingSingle?.name}」？`}
+        confirmLabel="删除"
+        onConfirm={() => deletingSingle && deleteMutation.mutate(deletingSingle.id)}
+        onCancel={() => setDeletingSingle(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingBatch}
+        title="批量删除"
+        message={`确定删除选中的 ${selectedIds.size} 个联系人？删除后不可恢复。`}
+        confirmLabel={`删除 ${selectedIds.size} 人`}
+        onConfirm={() => batchDeleteMutation.mutate(Array.from(selectedIds))}
+        onCancel={() => setDeletingBatch(false)}
+      />
     </>
   )
 }

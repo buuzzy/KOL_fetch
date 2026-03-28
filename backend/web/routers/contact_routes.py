@@ -144,6 +144,35 @@ async def import_from_snapshot(
         channels = extract_contacts(contact_text)
         email = channels.get("email", [""])[0] if channels.get("email") else ""
 
+        if platform == "instagram":
+            pub_email = (d.get("public_email", "") or "").strip()
+            pub_phone = (d.get("public_phone", "") or "").strip()
+            bio_links = d.get("bio_links", []) or []
+
+            if pub_email:
+                emails = channels.get("email", [])
+                if pub_email not in emails:
+                    emails.insert(0, pub_email)
+                channels["email"] = emails
+                if not email:
+                    email = pub_email
+
+            if pub_phone:
+                phones = channels.get("phone", [])
+                if pub_phone not in phones:
+                    phones.insert(0, pub_phone)
+                channels["phone"] = phones
+
+            if bio_links:
+                links = channels.get("link", [])
+                for bl in bio_links:
+                    if bl and bl not in links:
+                        links.append(bl)
+                channels["link"] = links
+
+            if d.get("is_whatsapp_linked"):
+                channels.setdefault("whatsapp", True)
+
         content_focus_str = ", ".join(d.get("content_focus", []) or [])
 
         record = {

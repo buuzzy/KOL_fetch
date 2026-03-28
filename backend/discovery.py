@@ -97,6 +97,9 @@ class KOL:
     content_focus: list[str] = field(default_factory=list)
     discovered_via_keywords: list[str] = field(default_factory=list)
     hk_relevance_score: int = 0
+    recent_titles: list[str] = field(default_factory=list)
+    llm_verdict: str = ""
+    llm_reason: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -280,7 +283,7 @@ def discover_kols(
         if uploads_id:
             uploads_map[cid] = uploads_id
 
-    # ── 活跃度筛选 ──
+    # ── 活跃度筛选 + 收集近期视频标题 ──
     if max_inactive_days > 0 and kols:
         cutoff = datetime.now(timezone.utc) - timedelta(days=max_inactive_days)
         logger.info(
@@ -294,7 +297,7 @@ def discover_kols(
                 active_kols.append(kol)
                 continue
             try:
-                last_date_str = client.get_latest_upload_date(playlist_id)
+                recent = client.get_recent_uploads(playlist_id, max_results=3)
             except QuotaExhaustedError:
                 logger.warning("活跃度检查时 quota 耗尽，跳过剩余检查")
                 active_kols.append(kol)
@@ -308,9 +311,16 @@ def discover_kols(
                 active_kols.append(kol)
                 continue
 
-            if not last_date_str:
+            if not recent:
                 excluded["不活跃"] += 1
                 logger.debug(f"排除不活跃(无视频): {kol.name}")
+                continue
+
+            kol.recent_titles = [v["title"] for v in recent if v.get("title")]
+
+            last_date_str = recent[0].get("published_at", "")
+            if not last_date_str:
+                active_kols.append(kol)
                 continue
 
             try:

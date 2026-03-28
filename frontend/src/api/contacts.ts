@@ -10,11 +10,11 @@ export interface Contact {
   follower_count: number
   profile_url: string
   content_focus: string
-  contact_channels: Record<string, string[]>
+  contact_channels: Record<string, string[] | boolean>
   contact_status: string
   notes: string
   hk_relevance_score: number
-  _channels: Record<string, string[]>
+  _channels: Record<string, string[] | boolean>
   _has_contact: boolean
   created_at: string
 }

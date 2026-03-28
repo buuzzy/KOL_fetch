@@ -1,20 +1,24 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { listSnapshots, deleteSnapshot } from '../api/snapshots'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function SnapshotsPage() {
   const queryClient = useQueryClient()
   const { data: snapshots, isLoading } = useQuery({ queryKey: ['snapshots'], queryFn: () => listSnapshots() })
+  const [deleting, setDeleting] = useState<{ id: string; label: string } | null>(null)
 
   const deleteMutation = useMutation({
     mutationFn: deleteSnapshot,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['snapshots'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] })
+      toast.success('快照已删除')
+      setDeleting(null)
+    },
+    onError: () => toast.error('删除失败，请重试'),
   })
-
-  const handleDelete = (id: string, label: string) => {
-    if (!confirm(`确定删除快照「${label}」？`)) return
-    deleteMutation.mutate(id)
-  }
 
   if (isLoading) return <div className="text-gray-400 text-center py-20">加载中...</div>
 
@@ -62,7 +66,7 @@ export default function SnapshotsPage() {
                     <td className="px-6 py-3 text-sm text-gray-500">{s.created_at}</td>
                     <td className="px-6 py-3 space-x-3">
                       <Link to={`/snapshots/${s.id}`} className="text-sm text-blue-600 hover:text-blue-800">详情</Link>
-                      <button onClick={() => handleDelete(s.id, s.label)} className="text-sm text-red-600 hover:text-red-800">删除</button>
+                      <button onClick={() => setDeleting({ id: s.id, label: s.label })} className="text-sm text-red-600 hover:text-red-800">删除</button>
                     </td>
                   </tr>
                 ))}
@@ -76,6 +80,15 @@ export default function SnapshotsPage() {
           <Link to="/discover" className="text-blue-600 hover:underline text-sm mt-2 inline-block">开始搜索博主</Link>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="删除快照"
+        message={`确定删除快照「${deleting?.label}」？删除后不可恢复。`}
+        confirmLabel="删除"
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+        onCancel={() => setDeleting(null)}
+      />
     </>
   )
 }
