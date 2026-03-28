@@ -29,3 +29,4 @@ steps:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  dynamic_substitutions: true
