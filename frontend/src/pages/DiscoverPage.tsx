@@ -338,7 +338,6 @@ function LLMPanel({ enabled, onToggle, criteria, onChange, showAdvanced, onToggl
 function YouTubeForm() {
   const navigate = useNavigate()
   const { data: keywords } = useQuery({ queryKey: ['keywords'], queryFn: getKeywords })
-  const { data: llmOptions } = useQuery({ queryKey: ['llm-options'], queryFn: getLLMOptions })
 
   const [selected, setSelected] = useState<string[]>([])
   const [customKeywords, setCustomKeywords] = useState('')
@@ -465,7 +464,6 @@ function YouTubeForm() {
 function InstagramForm() {
   const navigate = useNavigate()
   const { data: igData } = useQuery({ queryKey: ['ig-keywords'], queryFn: getIGKeywords })
-  const { data: llmOptions } = useQuery({ queryKey: ['llm-options'], queryFn: getLLMOptions })
 
   const [selected, setSelected] = useState<string[]>([])
   const [customKeywords, setCustomKeywords] = useState('')

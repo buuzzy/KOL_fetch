@@ -3,11 +3,24 @@ import { useParams, Link } from 'react-router-dom'
 import { getTaskState } from '../api/discover'
 import { downloadReport } from '../api/reports'
 
+interface TaskSummary {
+  total?: number
+  rule_passed?: number
+  llm_passed?: number
+  llm_rejected?: number
+  llm_summary?: string
+  quota_used?: number
+  api_calls?: number
+  cost?: number
+  snapshot_id?: string
+  top3?: { name: string; subscribers?: number; followers?: number }[]
+}
+
 interface SSEData {
   type: 'log' | 'done' | 'error'
   message?: string
   status?: string
-  summary?: Record<string, unknown>
+  summary?: TaskSummary
   snapshot_id?: string
   report_paths?: Record<string, string>
   error?: string
@@ -18,7 +31,7 @@ export default function TaskProgressPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [status, setStatus] = useState<string>('loading')
   const [taskType, setTaskType] = useState<string>('youtube')
-  const [summary, setSummary] = useState<Record<string, unknown> | null>(null)
+  const [summary, setSummary] = useState<TaskSummary | null>(null)
   const [snapshotId, setSnapshotId] = useState('')
   const [reportPaths, setReportPaths] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
