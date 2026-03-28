@@ -132,30 +132,35 @@ class TaskManager:
                 return
 
             rule_passed_count = len(kols)
-            state.logs.append(f"规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
 
             llm_criteria = params.get("llm_criteria")
-            filter_result = llm_filter_candidates(kols, "youtube", criteria=llm_criteria)
-            kols = [entry["_original"] for entry in filter_result.passed]
+            summary_text = ""
 
-            summary_text = generate_summary(
-                filter_result, "YouTube", keywords,
-                min_subs, max_subs, rule_passed_count,
-                criteria=llm_criteria,
-            )
-            filter_result.summary = summary_text
-            state.logs.append(f"AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+            if llm_criteria is not None:
+                state.logs.append(f"规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
+                filter_result = llm_filter_candidates(kols, "youtube", criteria=llm_criteria)
+                kols = [entry["_original"] for entry in filter_result.passed]
 
-            if not kols:
-                state.logs.append("AI 精筛后无符合条件的 KOL")
-                state.status = "completed"
-                state.result_summary = {
-                    "total": 0, "quota_used": client.quota_used,
-                    "rule_passed": rule_passed_count,
-                    "llm_summary": summary_text,
-                }
-                self._update_db_finish(state.task_id, "completed", state.result_summary)
-                return
+                summary_text = generate_summary(
+                    filter_result, "YouTube", keywords,
+                    min_subs, max_subs, rule_passed_count,
+                    criteria=llm_criteria,
+                )
+                filter_result.summary = summary_text
+                state.logs.append(f"AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+
+                if not kols:
+                    state.logs.append("AI 精筛后无符合条件的 KOL")
+                    state.status = "completed"
+                    state.result_summary = {
+                        "total": 0, "quota_used": client.quota_used,
+                        "rule_passed": rule_passed_count,
+                        "llm_summary": summary_text,
+                    }
+                    self._update_db_finish(state.task_id, "completed", state.result_summary)
+                    return
+            else:
+                state.logs.append(f"规则筛选通过 {rule_passed_count} 个（AI 精筛已关闭）")
 
             csv_path = export_csv(kols)
             xlsx_path = export_excel(kols)
@@ -166,22 +171,32 @@ class TaskManager:
             )
 
             state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
-            state.result_summary = {
+            result_summary: dict = {
                 "total": len(kols),
                 "quota_used": client.quota_used,
                 "rule_passed": rule_passed_count,
-                "llm_passed": len(kols),
-                "llm_rejected": len(filter_result.rejected),
-                "llm_summary": summary_text,
                 "snapshot_id": snapshot_id,
                 "top3": [{"name": k.name, "subscribers": k.subscriber_count} for k in kols[:3]],
             }
+            if llm_criteria is not None:
+                result_summary["llm_passed"] = len(kols)
+                result_summary["llm_rejected"] = len(filter_result.rejected)
+                result_summary["llm_summary"] = summary_text
+            state.result_summary = result_summary
             state.status = "completed"
-            state.logs.append(
-                f"完成! 发现 {len(kols)} 个 KOL "
-                f"(规则 {rule_passed_count} → AI {len(kols)}), "
-                f"Quota 已用 {client.quota_used}"
-            )
+
+            if llm_criteria is not None:
+                state.logs.append(
+                    f"完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则 {rule_passed_count} → AI {len(kols)}), "
+                    f"Quota 已用 {client.quota_used}"
+                )
+            else:
+                state.logs.append(
+                    f"完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则筛选 {rule_passed_count} 个), "
+                    f"Quota 已用 {client.quota_used}"
+                )
             self._update_db_finish(state.task_id, "completed", state.result_summary)
 
         except Exception as e:
@@ -255,31 +270,36 @@ class TaskManager:
                 return
 
             rule_passed_count = len(kols)
-            state.logs.append(f"[IG] 规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
 
             llm_criteria = params.get("llm_criteria")
-            filter_result = llm_filter_candidates(kols, "instagram", criteria=llm_criteria)
-            kols = [entry["_original"] for entry in filter_result.passed]
+            summary_text = ""
 
-            summary_text = generate_summary(
-                filter_result, "Instagram", keywords,
-                min_followers, max_followers, rule_passed_count,
-                criteria=llm_criteria,
-            )
-            filter_result.summary = summary_text
-            state.logs.append(f"[IG] AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+            if llm_criteria is not None:
+                state.logs.append(f"[IG] 规则筛选通过 {rule_passed_count} 个，进入 AI 精筛...")
+                filter_result = llm_filter_candidates(kols, "instagram", criteria=llm_criteria)
+                kols = [entry["_original"] for entry in filter_result.passed]
 
-            if not kols:
-                state.logs.append("[IG] AI 精筛后无符合条件的 KOL")
-                state.status = "completed"
-                state.result_summary = {
-                    "total": 0, "api_calls": client.request_count,
-                    "cost": round(client.estimated_cost, 3),
-                    "rule_passed": rule_passed_count,
-                    "llm_summary": summary_text,
-                }
-                self._update_db_finish(state.task_id, "completed", state.result_summary)
-                return
+                summary_text = generate_summary(
+                    filter_result, "Instagram", keywords,
+                    min_followers, max_followers, rule_passed_count,
+                    criteria=llm_criteria,
+                )
+                filter_result.summary = summary_text
+                state.logs.append(f"[IG] AI 精筛完成: {len(kols)}/{rule_passed_count} 通过")
+
+                if not kols:
+                    state.logs.append("[IG] AI 精筛后无符合条件的 KOL")
+                    state.status = "completed"
+                    state.result_summary = {
+                        "total": 0, "api_calls": client.request_count,
+                        "cost": round(client.estimated_cost, 3),
+                        "rule_passed": rule_passed_count,
+                        "llm_summary": summary_text,
+                    }
+                    self._update_db_finish(state.task_id, "completed", state.result_summary)
+                    return
+            else:
+                state.logs.append(f"[IG] 规则筛选通过 {rule_passed_count} 个（AI 精筛已关闭）")
 
             csv_path = export_ig_csv(kols)
             xlsx_path = export_ig_excel(kols)
@@ -290,23 +310,33 @@ class TaskManager:
             )
 
             state.report_paths = {"csv": csv_path, "xlsx": xlsx_path}
-            state.result_summary = {
+            ig_summary: dict = {
                 "total": len(kols),
                 "api_calls": client.request_count,
                 "cost": round(client.estimated_cost, 3),
                 "rule_passed": rule_passed_count,
-                "llm_passed": len(kols),
-                "llm_rejected": len(filter_result.rejected),
-                "llm_summary": summary_text,
                 "snapshot_id": snapshot_id,
                 "top3": [{"name": k.name, "followers": k.follower_count} for k in kols[:3]],
             }
+            if llm_criteria is not None:
+                ig_summary["llm_passed"] = len(kols)
+                ig_summary["llm_rejected"] = len(filter_result.rejected)
+                ig_summary["llm_summary"] = summary_text
+            state.result_summary = ig_summary
             state.status = "completed"
-            state.logs.append(
-                f"[IG] 完成! 发现 {len(kols)} 个 KOL "
-                f"(规则 {rule_passed_count} → AI {len(kols)}), "
-                f"费用 ${client.estimated_cost:.3f}"
-            )
+
+            if llm_criteria is not None:
+                state.logs.append(
+                    f"[IG] 完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则 {rule_passed_count} → AI {len(kols)}), "
+                    f"费用 ${client.estimated_cost:.3f}"
+                )
+            else:
+                state.logs.append(
+                    f"[IG] 完成! 发现 {len(kols)} 个 KOL "
+                    f"(规则筛选 {rule_passed_count} 个), "
+                    f"费用 ${client.estimated_cost:.3f}"
+                )
             self._update_db_finish(state.task_id, "completed", state.result_summary)
 
         except Exception as e:

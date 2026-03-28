@@ -86,6 +86,7 @@ export default function SnapshotsPage() {
         title="删除快照"
         message={`确定删除快照「${deleting?.label}」？删除后不可恢复。`}
         confirmLabel="删除"
+        loading={deleteMutation.isPending}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
         onCancel={() => setDeleting(null)}
       />

@@ -259,6 +259,7 @@ export default function ContactsPage() {
         title="删除联系人"
         message={`确定删除联系人「${deletingSingle?.name}」？`}
         confirmLabel="删除"
+        loading={deleteMutation.isPending}
         onConfirm={() => deletingSingle && deleteMutation.mutate(deletingSingle.id)}
         onCancel={() => setDeletingSingle(null)}
       />
@@ -268,6 +269,7 @@ export default function ContactsPage() {
         title="批量删除"
         message={`确定删除选中的 ${selectedIds.size} 个联系人？删除后不可恢复。`}
         confirmLabel={`删除 ${selectedIds.size} 人`}
+        loading={batchDeleteMutation.isPending}
         onConfirm={() => batchDeleteMutation.mutate(Array.from(selectedIds))}
         onCancel={() => setDeletingBatch(false)}
       />

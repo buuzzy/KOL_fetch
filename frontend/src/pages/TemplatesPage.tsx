@@ -143,6 +143,7 @@ export default function TemplatesPage() {
         title="删除模板"
         message={`确定删除邮件模板「${deleting?.name}」？删除后不可恢复。`}
         confirmLabel="删除"
+        loading={deleteMutation.isPending}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
         onCancel={() => setDeleting(null)}
       />
