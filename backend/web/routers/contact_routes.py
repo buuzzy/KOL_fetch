@@ -232,6 +232,7 @@ async def update_email(contact_id: str, request: Request, _user=Depends(require_
 @router.delete("/{contact_id}")
 async def delete_contact(contact_id: str, _user=Depends(require_auth)):
     client = get_admin_client()
+    client.table("email_logs").delete().eq("kol_contact_id", contact_id).execute()
     client.table("kol_contacts").delete().eq("id", contact_id).execute()
     return {"success": True}
 
@@ -261,6 +262,7 @@ async def batch_delete_contacts(request: Request, _user=Depends(require_auth)):
         return JSONResponse({"error": "未选择联系人"}, status_code=400)
 
     client = get_admin_client()
+    client.table("email_logs").delete().in_("kol_contact_id", ids).execute()
     client.table("kol_contacts").delete().in_("id", ids).execute()
     return {"success": True, "deleted": len(ids)}
 
