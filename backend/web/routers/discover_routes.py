@@ -109,12 +109,19 @@ async def health_check(_user=Depends(require_auth)):
     if TIKHUB_API_KEY:
         try:
             r = http.get(
-                "https://api.tikhub.io/api/v1/demo/instagram/web/fetch_user_info",
+                "https://api.tikhub.io/api/v1/instagram/v2/fetch_user_info",
                 params={"username": "instagram"},
                 headers={"Authorization": f"Bearer {TIKHUB_API_KEY}"},
                 timeout=10,
             )
-            results["tikhub"] = {"ok": r.status_code == 200, "status": r.status_code}
+            detail = {}
+            if r.status_code != 200:
+                try:
+                    body = r.json()
+                    detail["message"] = body.get("detail", {}).get("message_zh", "") or body.get("detail", {}).get("message", "")
+                except Exception:
+                    pass
+            results["tikhub"] = {"ok": r.status_code == 200, "status": r.status_code, **detail}
         except Exception as e:
             results["tikhub"] = {"ok": False, "error": str(e)}
     else:
