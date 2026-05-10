@@ -92,27 +92,38 @@ class YouTubeClient:
         resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
         data = resp.json()
 
-        if resp.status_code == 403:
+        if resp.status_code in (400, 403):
             error_reason = (
                 data.get("error", {}).get("errors", [{}])[0].get("reason", "")
             )
             _QUOTA_REASONS = ("quotaExceeded", "dailyLimitExceeded")
-            _ROTATE_REASONS = _QUOTA_REASONS + ("accessNotConfigured", "SERVICE_DISABLED")
+            _INVALID_KEY_REASONS = ("badRequest", "keyInvalid")
+            _ROTATE_REASONS = _QUOTA_REASONS + (
+                "accessNotConfigured",
+                "SERVICE_DISABLED",
+                *_INVALID_KEY_REASONS,
+            )
             if error_reason in _ROTATE_REASONS:
-                label = "额度耗尽" if error_reason in _QUOTA_REASONS else "API 未启用"
+                if error_reason in _QUOTA_REASONS:
+                    label = "额度耗尽"
+                elif error_reason in _INVALID_KEY_REASONS:
+                    label = "Key 无效"
+                else:
+                    label = "API 未启用"
                 logger.warning("Key #%d %s (%s)", self._key_index + 1, label, error_reason)
                 if self._rotate_key():
                     params["key"] = self._api_key
                     resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
                     data = resp.json()
-                    if resp.status_code != 403:
+                    if resp.status_code not in (400, 403):
                         resp.raise_for_status()
                         return data
                     return self._get(endpoint, params)
                 raise QuotaExhaustedError(
                     f"所有 {len(self._api_keys)} 个 Key 均不可用"
                 )
-            raise QuotaExhaustedError(f"API 返回 403: {data}")
+            if resp.status_code == 403:
+                raise QuotaExhaustedError(f"API 返回 403: {data}")
 
         resp.raise_for_status()
         return data

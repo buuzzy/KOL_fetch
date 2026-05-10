@@ -6,19 +6,22 @@ load_dotenv(find_dotenv(usecwd=True))
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 TIKHUB_API_KEY = os.getenv("TIKHUB_API_KEY", "")
 
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v3")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-flash")
 
 def _collect_youtube_keys() -> list[str]:
     """收集所有可用的 YouTube API Key（主 key + fallback keys）。"""
     keys: list[str] = []
+    seen: set[str] = set()
     if YOUTUBE_API_KEY:
         keys.append(YOUTUBE_API_KEY)
+        seen.add(YOUTUBE_API_KEY)
     for i in range(1, 10):
         k = os.getenv(f"YOUTUBE_API_KEY_FALLBACK_{i}", "")
-        if k:
+        if k and k not in seen:
             keys.append(k)
+            seen.add(k)
     return keys
 
 YOUTUBE_API_KEYS: list[str] = _collect_youtube_keys()

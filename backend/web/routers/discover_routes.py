@@ -90,7 +90,7 @@ async def health_check(_user=Depends(require_auth)):
     import requests as http
     results: dict[str, dict] = {}
 
-    from config import YOUTUBE_API_KEYS, TIKHUB_API_KEY, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+    from config import YOUTUBE_API_KEYS, TIKHUB_API_KEY, DEEPSEEK_API_KEY, LLM_BASE_URL, LLM_MODEL
 
     if YOUTUBE_API_KEYS:
         try:
@@ -127,14 +127,14 @@ async def health_check(_user=Depends(require_auth)):
     else:
         results["tikhub"] = {"ok": False, "error": "TIKHUB_API_KEY 未配置"}
 
-    if LLM_API_KEY and LLM_BASE_URL:
+    if DEEPSEEK_API_KEY and LLM_BASE_URL:
         try:
-            r = http.get(f"{LLM_BASE_URL}/models", headers={"Authorization": f"Bearer {LLM_API_KEY}"}, timeout=8)
+            r = http.get(f"{LLM_BASE_URL}/models", headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"}, timeout=8)
             results["llm"] = {"ok": r.status_code == 200, "status": r.status_code, "model": LLM_MODEL}
         except Exception as e:
             results["llm"] = {"ok": False, "error": str(e)}
     else:
-        results["llm"] = {"ok": False, "error": "LLM_API_KEY 或 LLM_BASE_URL 未配置"}
+        results["llm"] = {"ok": False, "error": "DEEPSEEK_API_KEY 未配置"}
 
     return results
 

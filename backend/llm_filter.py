@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import requests
 
-from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from config import DEEPSEEK_API_KEY, LLM_BASE_URL, LLM_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -149,13 +149,13 @@ class FilterResult:
 
 
 def _call_llm(messages: list[dict], max_tokens: int = 2000) -> dict:
-    if not LLM_API_KEY or not LLM_BASE_URL:
-        raise RuntimeError("LLM_API_KEY 或 LLM_BASE_URL 未配置")
+    if not DEEPSEEK_API_KEY:
+        raise RuntimeError("DEEPSEEK_API_KEY 未配置")
 
     url = f"{LLM_BASE_URL}/chat/completions"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {LLM_API_KEY}",
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
     }
     payload = {
         "model": LLM_MODEL,
@@ -228,11 +228,11 @@ def llm_filter_candidates(
     if not kols:
         return FilterResult()
 
-    if not LLM_API_KEY or not LLM_BASE_URL:
+    if not DEEPSEEK_API_KEY:
         logger.warning("[LLM] 未配置 API，跳过精筛，全部保留")
         return FilterResult(
             passed=[{"_original": k} for k in kols],
-            summary="LLM 未配置，已跳过精筛环节。",
+            summary="DEEPSEEK_API_KEY 未配置，已跳过精筛环节。",
         )
 
     system_prompt = _build_system_prompt(criteria)
@@ -352,7 +352,7 @@ def generate_summary(
             f"但最终只有 {final_count} 个通过精筛，缺口 {target_count - final_count} 个。"
         )
 
-    if not LLM_API_KEY or not LLM_BASE_URL:
+    if not DEEPSEEK_API_KEY:
         if shortfall_note:
             return (
                 f"本次搜索最终入选 {final_count} 个 KOL。{shortfall_note}"
